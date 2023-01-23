@@ -394,12 +394,12 @@ if __name__ == "__main__":
     default_applets = [
         "fff_web", "fff_selftest", "fff_logcleaner", "fff_logcleaner_gzip", "fff_filemonitor",
 
-        "fff_deleter_c2f11_09_01", "fff_deleter_playback_c2f11_13_01",
-        "fff_deleter_lookarea_c2f11_19_01", "fff_deleter_minidaq_c2f11_19_01",
+        "fff_deleter_c2a06_01_01", "fff_deleter_playback_c2a06_03_01",
+        "fff_deleter_lookarea_c2a06_05_01", "fff_deleter_minidaq_c2a06_05_01",
         "fff_deleter_minidaq_cms904",
 
         "fff_simulator",
-        "analyze_files", "analyze_files_lookarea_c2f11_19_01", "analyze_releases",
+        "analyze_files", "analyze_files_lookarea_c2a06_05_01", "analyze_releases",
     ]
 
     config_web_secret = "changeme"

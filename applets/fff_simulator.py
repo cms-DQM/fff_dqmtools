@@ -582,7 +582,7 @@ class FFFSimulatorSocket(fff_control.Ctrl):
 
         run.control(line.strip(), write_f)
 
-@fff_cluster.host_wrapper(allow = ["bu-c2f11-13-01"])
+@fff_cluster.host_wrapper(allow = ["dqmrubu-c2a06-03-01"])
 @fff_dqmtools.fork_wrapper(__name__)
 @fff_dqmtools.lock_wrapper
 def __run__(**kwargs):
