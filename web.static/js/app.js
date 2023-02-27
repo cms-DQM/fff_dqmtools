@@ -40,7 +40,6 @@ dqmApp.controller('NavigationCtrl', [
         /// return for web outside P5 (always via cmsweb-testbed or cmsweb frontier redirection)
         var local_token = tokens[2];
         var local = window.location.href;
-//        if( local_token.includes("bu-c2f11-13-01") ){ // hard code check of entry point
         if( local_token.includes("dqmrubu-c2a06-03-01") ){ // hard code check of entry point
           if( local.includes("cmsweb-testbed") ){
             return "https://cmsweb-testbed.cern.ch/dqm/dqm-square-origin/sync_proxy";

@@ -9,10 +9,7 @@ from threading import Timer
 import json
 
 clusters = {
-#  'production_c2f11': ["bu-c2f11-09-01.cms", "fu-c2f11-11-01.cms", "fu-c2f11-11-02.cms", "fu-c2f11-11-03.cms", "fu-c2f11-11-04.cms", ],        
-#  'playback_c2f11': ["bu-c2f11-13-01.cms", "fu-c2f11-15-01.cms", "fu-c2f11-15-02.cms", "fu-c2f11-15-03.cms", "fu-c2f11-15-04.cms", ],          
-#  'lookarea_c2f11': ["bu-c2f11-19-01.cms", ]                                                                                                   
-  'production_c2a06': ["dqmrubu-c2a06-01-01.cms", "dqmfu-c2b01-45-01.cms", "dqmfu-c2b02-45-01.cms"],
+  'production_c2a06': ["dqmrubu-c2a06-01-01.cms", "dqmfu-c2b03-45-01.cms", "dqmfu-c2b04-45-01.cms"],
   'playback_c2a06': ["dqmrubu-c2a06-03-01.cms", "dqmfu-c2b01-45-01.cms", "dqmfu-c2b02-45-01.cms"],
   'lookarea_c2a06': ["dqmrubu-c2a06-05-01.cms"]
 }
