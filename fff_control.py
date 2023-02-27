@@ -33,7 +33,7 @@ class Ctrl(object):
 
             f = cli_sock.makefile("rw")
             def write_f(data):
-                f.write(data)
+                f.write(data) # MAYBE CHANGE TO f.write( bytes(data, 'utf-8') ) ?
                 f.flush()
 
             while True:
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     sock.connect("\0" + lkey)
 
-    sock.sendall(cmd + "\n")
+    sock.sendall( bytes(cmd + "\n", 'utf-8') )
     sock.shutdown(socket.SHUT_WR)
 
     while True:
@@ -89,7 +89,7 @@ if __name__ == "__main__":
         if len(data) == 0:
             break
 
-        sys.stdout.write(data)
+        sys.stdout.write(data.decode('utf-8'))
         sys.stdout.flush()
 
     sock.close()
