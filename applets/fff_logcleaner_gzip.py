@@ -6,8 +6,12 @@ import time
 
 log = logging.getLogger(__name__)
 
-MATCH=("/var/log/hltd/pid/hlt_run*_pid*_gzip.log.gz", "/var/log/hltd/pid/hlt_run*_pid*.log")
-DELETE_HOURS = 14*24*1
+MATCH = (
+    "/var/log/hltd/pid/hlt_run*_pid*_gzip.log.gz",
+    "/var/log/hltd/pid/hlt_run*_pid*.log",
+)
+DELETE_HOURS = 14 * 24 * 1
+
 
 def do_the_log_cleanup(fake=False, running_set=None):
     now = time.time()
@@ -28,7 +32,9 @@ def do_the_log_cleanup(fake=False, running_set=None):
 
     return len(files)
 
+
 import fff_dqmtools
+
 
 @fff_dqmtools.fork_wrapper(__name__)
 @fff_dqmtools.lock_wrapper
@@ -41,8 +47,12 @@ def __run__(opts, **kwargs):
             start = time.time()
             files = do_the_log_cleanup()
             took = time.time() - start
-            log.info("Log cleaner finished, checked %d files, took %.02f seconds.", files, took)
+            log.info(
+                "Log cleaner finished, checked %d files, took %.02f seconds.",
+                files,
+                took,
+            )
         except:
             log.warning("Log cleaner crashed!", exc_info=True)
 
-        time.sleep(15*60)
+        time.sleep(15 * 60)

@@ -1,0 +1,5 @@
+bottle
+ws4py
+inotify
+gevent
+requests

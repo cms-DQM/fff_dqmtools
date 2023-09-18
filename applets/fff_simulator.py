@@ -19,22 +19,25 @@ import logging
 
 from applets.fff_filemonitor import atomic_create_write
 
+
 # usually atomic_create_write writes files with 0600 mask.
 # we need a bit more readable files instead.
 def atomic_write(filename, content):
     return atomic_create_write(filename, content, mode=0o644)
 
+
 log = logging.getLogger("fff_simulator")
 
+
 class SimulatorRun(object):
-    """ A class to represent an active run.
+    """A class to represent an active run.
 
-        Run number should already be allocated by the manager.
+    Run number should already be allocated by the manager.
 
-        The class shouldn't handle operational errors (ie run directory already exists),
-        but rather just crash (or enter 'error' state).
+    The class shouldn't handle operational errors (ie run directory already exists),
+    but rather just crash (or enter 'error' state).
 
-        This is easier to debug and to handle.
+    This is easier to debug and to handle.
     """
 
     def __init__(self, manager, config, kwargs):
@@ -50,14 +53,15 @@ class SimulatorRun(object):
         self.write_state("init")
 
         import gevent.event
+
         self.control_event = gevent.event.Event()
 
     def write_state(self, next_state=None):
         """
-            Internal function which updates the current state of the run.
-            It's called every state transition.
+        Internal function which updates the current state of the run.
+        It's called every state transition.
 
-            Additionally it writes ./status and DQM^2 report files.
+        Additionally it writes ./status and DQM^2 report files.
         """
 
         if next_state is not None:
@@ -74,7 +78,7 @@ class SimulatorRun(object):
         status["config"] = self.config
         status["socket_name"] = self.control_socket_name
 
-        if hasattr(self, 'st_current_lumi'):
+        if hasattr(self, "st_current_lumi"):
             status["ls"] = self.st_current_lumi
             extra["ls_map"] = self.st_current_map
 
@@ -83,7 +87,7 @@ class SimulatorRun(object):
         atomic_write(status_fn, json.dumps(status, indent=2))
 
         # whatever happens now will only be written into dqm^2
-        if hasattr(self, 'streams_found'):
+        if hasattr(self, "streams_found"):
             extra["streams_found"] = self.streams_found
 
         if os.path.exists(self.report_directory):
@@ -91,9 +95,13 @@ class SimulatorRun(object):
             status["hostname"] = socket.gethostname()
             status["tag"] = __name__
             status["run"] = self.config["run"]
-            status["pid"] =  os.getpid()
+            status["pid"] = os.getpid()
             status["type"] = "dqm-playback"
-            status["_id"] = "dqm-playback-%s-%s-run%d" % (status["hostname"], status["tag"], status["run"])
+            status["_id"] = "dqm-playback-%s-%s-run%d" % (
+                status["hostname"],
+                status["tag"],
+                status["run"],
+            )
 
             final_fp = os.path.join(self.report_directory, status["_id"] + ".jsn")
             body = json.dumps(status, indent=None)
@@ -103,10 +111,10 @@ class SimulatorRun(object):
 
     def run_unsafe(self):
         """
-            The 'main' code of the run.
-            It is 'unsafe' because it might throw an exception.
+        The 'main' code of the run.
+        It is 'unsafe' because it might throw an exception.
 
-            'run()' is the 'safe' version of this method.
+        'run()' is the 'safe' version of this method.
         """
 
         # create some directories
@@ -133,13 +141,13 @@ class SimulatorRun(object):
             self.write_state("stopped")
 
     def control(self, line, write_f):
-        """ Called from outside this class to control the state (run_unsafe()).
+        """Called from outside this class to control the state (run_unsafe()).
 
-            It is usually and most likely called outside this class
-            from another 'greenlet' while 'run()' is in progress.
+        It is usually and most likely called outside this class
+        from another 'greenlet' while 'run()' is in progress.
 
-            While it's not necessary to synchronize gevent threads,
-            self.control_event still does some synchronization (to interrupt transition timeout).
+        While it's not necessary to synchronize gevent threads,
+        self.control_event still does some synchronization (to interrupt transition timeout).
 
         """
 
@@ -150,7 +158,9 @@ class SimulatorRun(object):
             send("State: %s" % (self.state))
 
             if hasattr(self, "st_current_lumi"):
-                send("Current lumi: %d" % (self.st_current_lumi),)
+                send(
+                    "Current lumi: %d" % (self.st_current_lumi),
+                )
                 send("Data files from %s:" % (self.config["source"],))
                 for stream, file in self.st_current_map.items():
                     send("  %s -> %s" % (stream, file[0]))
@@ -177,9 +187,9 @@ class SimulatorRun(object):
             send("error: unknown command")
 
     def run(self):
-        """ Safe version of run_unsafe().
+        """Safe version of run_unsafe().
 
-            Should be called once we are ready to run.
+        Should be called once we are ready to run.
         """
 
         try:
@@ -193,28 +203,25 @@ class SimulatorRun(object):
                 pass
 
     def file_ok(self, fp):
-        """ Checks if files are okay for re-copy.
+        """Checks if files are okay for re-copy.
 
-            See make_copy() for details.
+        See make_copy() for details.
         """
 
-        if ((".deleted" in fp) or
-            (not os.path.exists(fp)) or
-            (os.stat(fp).st_size == 0)):
-
+        if (".deleted" in fp) or (not os.path.exists(fp)) or (os.stat(fp).st_size == 0):
             return False
 
         return True
 
     def make_copy(self, source, dest):
-        """ Performs a smart copy.
+        """Performs a smart copy.
 
-            The logic is:
-              - if file wasn't copied to the dest directory -> copy it from source
-              - if file exists in the dest directory (but with a different name) -> copy it from the old file
+        The logic is:
+          - if file wasn't copied to the dest directory -> copy it from source
+          - if file exists in the dest directory (but with a different name) -> copy it from the old file
 
-            The idea is to speed up copying if _files_ are outside the ramdisk.
-            If playback files are on ramdisk, this has no effect.
+        The idea is to speed up copying if _files_ are outside the ramdisk.
+        If playback files are on ramdisk, this has no effect.
         """
 
         if not hasattr(self, "_copy_map"):
@@ -232,7 +239,9 @@ class SimulatorRun(object):
         self._copy_map[source] = dest
 
     def discover_files(self):
-        re_pattern = re.compile(r'run([0-9]+)_ls([0-9]+)_stream([A-Za-z0-9]+)_([A-Za-z0-9_-]+)\.jsn')
+        re_pattern = re.compile(
+            r"run([0-9]+)_ls([0-9]+)_stream([A-Za-z0-9]+)_([A-Za-z0-9_-]+)\.jsn"
+        )
         self.streams_found = {}
 
         files_found = set()
@@ -248,7 +257,7 @@ class SimulatorRun(object):
                 if run_found is None:
                     run_found = run
                 elif run_found != run:
-                    #raise Exception("Files from multiple runs are not (yet) supported for as playback input.")
+                    # raise Exception("Files from multiple runs are not (yet) supported for as playback input.")
                     pass
 
                 # remap stream if set
@@ -257,27 +266,40 @@ class SimulatorRun(object):
                 if stream in remap:
                     stream = remap[stream]
                     if stream not in self.streams_found:
-                        log.info("Stream %s will be converted into stream %s", stream_orig, stream)
+                        log.info(
+                            "Stream %s will be converted into stream %s",
+                            stream_orig,
+                            stream,
+                        )
 
                 files_found.add(f)
-                stream_dct = self.streams_found.setdefault(stream, { 'lumi_files': [] })
-                stream_dct["lumi_files"].append((f, stream_source, ))
+                stream_dct = self.streams_found.setdefault(stream, {"lumi_files": []})
+                stream_dct["lumi_files"].append(
+                    (
+                        f,
+                        stream_source,
+                    )
+                )
 
         if run_found is None:
             raise Exception("Playback files not found.")
 
-        log.info("Found %d files for playback run %d", len(files_found), self.config["run"])
+        log.info(
+            "Found %d files for playback run %d", len(files_found), self.config["run"]
+        )
         log.info("Found %d streams, details:", len(self.streams_found))
         for stream in sorted(self.streams_found.keys()):
             stream_dct = self.streams_found[stream]
-            log.info("  found %d files for stream %s", len(stream_dct["lumi_files"]), stream)
+            log.info(
+                "  found %d files for stream %s", len(stream_dct["lumi_files"]), stream
+            )
             for file, source in stream_dct["lumi_files"]:
                 log.info("    stream %s file %s", stream, file)
 
     def create_run_directory(self):
-        rd = os.path.join(self.config["ramdisk"], 'run%d' % self.config["run"])
+        rd = os.path.join(self.config["ramdisk"], "run%d" % self.config["run"])
         os.makedirs(rd, 0o755)
-        log.info('Created run directory: %s' % rd)
+        log.info("Created run directory: %s" % rd)
         self.run_directory = rd
 
         # link this directory
@@ -295,7 +317,10 @@ class SimulatorRun(object):
             try:
                 atomic_write(run_write_file, str(self.config["run"]))
             except:
-                log.warning("Error writing the run number to the persistant storage.", exc_info=True)
+                log.warning(
+                    "Error writing the run number to the persistant storage.",
+                    exc_info=True,
+                )
 
         # create config file (for book-keeping)
         cf = os.path.join(rd, "config")
@@ -303,29 +328,31 @@ class SimulatorRun(object):
 
         # Now the famous Atanas hack to give inotify time to work correctly
         import gevent
+
         gevent.sleep(1)
 
     def create_global_file(self):
         # Creates the hidden .run*.global run file on the ramdisk.
         # run_unique_key value - https://github.com/cms-sw/cmssw/pull/33644#issuecomment-840511487
         # like self.config["run_unique_key"] = '4e94e771-add6-41be-8683-c5f6a7a9ed1f'
-        file_name = '.run%d.global' % self.config["run"]
+        file_name = ".run%d.global" % self.config["run"]
         full_name = os.path.join(self.config["ramdisk"], file_name)
 
-        run_unique_key = '4e94e771-add6-41be-8683-c5f6a7a9ed1f'
-        if "run_unique_key" in self.config : run_unique_key = self.config["run_unique_key"]
+        run_unique_key = "4e94e771-add6-41be-8683-c5f6a7a9ed1f"
+        if "run_unique_key" in self.config:
+            run_unique_key = self.config["run_unique_key"]
 
-        body  = 'run_key = %s\n' % self.config["run_key"]
-        body += 'run_unique_key = %s\n' % run_unique_key
+        body = "run_key = %s\n" % self.config["run_key"]
+        body += "run_unique_key = %s\n" % run_unique_key
 
         atomic_write(full_name, body)
-        log.info('Created hidden .global run file %s' % full_name)
+        log.info("Created hidden .global run file %s" % full_name)
 
     def create_eor(self):
-        file_name = 'run%d_ls0000_EoR.jsn' % self.config["run"]
+        file_name = "run%d_ls0000_EoR.jsn" % self.config["run"]
         full_name = os.path.join(self.run_directory, file_name)
         atomic_write(full_name, "")
-        log.info('Wrote EoR (end of run) file: %s' % full_name)
+        log.info("Wrote EoR (end of run) file: %s" % full_name)
 
     def start_new_lumisection(self):
         run = self.config["run"]
@@ -351,26 +378,37 @@ class SimulatorRun(object):
         if play_lumi not in self.config["lumi_to_skip"]:
             # copy all the files for this lumi
 
-            for stream, stream_dct  in self.streams_found.items():
+            for stream, stream_dct in self.streams_found.items():
                 # calculate which file goes here
                 files = stream_dct["lumi_files"]
 
                 jsn_orig_fn, stream_source = files[(play_lumi - 1) % len(files)]
-                jsn_play_fn = "run%06d_ls%04d_stream%s_%s.jsn" % (run, play_lumi, stream, stream_source)
+                jsn_play_fn = "run%06d_ls%04d_stream%s_%s.jsn" % (
+                    run,
+                    play_lumi,
+                    stream,
+                    stream_source,
+                )
 
                 self.st_current_map[stream] = input_join(jsn_orig_fn)
 
                 # read the original file name, for copying
-                with open(input_join(jsn_orig_fn), 'r') as f:
+                with open(input_join(jsn_orig_fn), "r") as f:
                     jsn_data = json.load(f)
                     dat_orig_fn = jsn_data["data"][3]
                     dat_orig_ext = os.path.splitext(dat_orig_fn)[1]
 
                 # define dat filename
-                dat_play_fn = "run%06d_ls%04d_stream%s_%s%s" % (run, play_lumi, stream, stream_source, dat_orig_ext)
+                dat_play_fn = "run%06d_ls%04d_stream%s_%s%s" % (
+                    run,
+                    play_lumi,
+                    stream,
+                    stream_source,
+                    dat_orig_ext,
+                )
 
                 # read the original file name, for copying
-                with open(input_join(jsn_orig_fn), 'r') as f:
+                with open(input_join(jsn_orig_fn), "r") as f:
                     jsn_data = json.load(f)
                     dat_orig_fn = jsn_data["data"][3]
 
@@ -392,16 +430,20 @@ class SimulatorRun(object):
 
             log.info("Copied %d files for lumi %06d", len(written_files), play_lumi)
         else:
-            log.info("Files for this lumi (%06d) will be skipped (to simulate holes in delivery)", play_lumi)
+            log.info(
+                "Files for this lumi (%06d) will be skipped (to simulate holes in delivery)",
+                play_lumi,
+            )
 
-        return # files are rather removed gently by FileDeleter greenlet
+        return  # files are rather removed gently by FileDeleter greenlet
         self.manager.register_files_for_cleanup(run, play_lumi, written_files)
+
 
 class RunManager(object):
     """
-        A helper class to manage multiple runs.
+    A helper class to manage multiple runs.
 
-        This class handles deletion of the old runs, file cleanup, and run number allocation.
+    This class handles deletion of the old runs, file cleanup, and run number allocation.
     """
 
     def __init__(self, kwargs):
@@ -438,11 +480,11 @@ class RunManager(object):
         return latest_run
 
     def manage_forever(self):
-        """ Starts new runs indefinetly...
+        """Starts new runs indefinetly...
 
-            ... until run crashes or goes into 'error' state.
+        ... until run crashes or goes into 'error' state.
 
-            In this case the error will be logged and the whole application will be restarted.
+        In this case the error will be logged and the whole application will be restarted.
         """
 
         while True:
@@ -485,9 +527,9 @@ class RunManager(object):
                 log.info("Deleting orphaned file: %s", fp)
 
     def on_start_cleanup(self):
-        """ Cleanup directory.
+        """Cleanup directory.
 
-            Should be called before manage_forever().
+        Should be called before manage_forever().
         """
 
         config = self.load_config()
@@ -527,7 +569,13 @@ class RunManager(object):
                 self.clean_run_directory(run_directory)
                 directories_to_delete.append(run_directory)
             else:
-                log.info("Skipping old run directory: %s, state = %s, %s != %s", run_directory, status["state"], my_key, their_key)
+                log.info(
+                    "Skipping old run directory: %s, state = %s, %s != %s",
+                    run_directory,
+                    status["state"],
+                    my_key,
+                    their_key,
+                )
 
         directories_to_delete.sort()
 
@@ -538,48 +586,62 @@ class RunManager(object):
 
     def register_files_for_cleanup(self, run, lumi, written_files):
         """
-            Deletes files which are older than number_of_ls_to_keep config parameter.
-            Be aware that this works across runs (and so does number_of_ls_to_keep parameter)!
+        Deletes files which are older than number_of_ls_to_keep config parameter.
+        Be aware that this works across runs (and so does number_of_ls_to_keep parameter)!
 
-            This is usually called from inside SimulatorRun class.
+        This is usually called from inside SimulatorRun class.
         """
 
         if self.config["number_of_ls_to_keep"] >= 0:
-            self.file_cleanup_backlog.append((run, lumi, written_files, ))
+            self.file_cleanup_backlog.append(
+                (
+                    run,
+                    lumi,
+                    written_files,
+                )
+            )
 
             while len(self.file_cleanup_backlog) > self.config["number_of_ls_to_keep"]:
                 old_run, old_lumi, files_to_delete = self.file_cleanup_backlog.pop(0)
 
-                log.info("Deleting %d files for old run/lumi: %d/%d", len(files_to_delete), old_run, old_lumi)
+                log.info(
+                    "Deleting %d files for old run/lumi: %d/%d",
+                    len(files_to_delete),
+                    old_run,
+                    old_lumi,
+                )
                 for f in files_to_delete:
                     if os.path.exists(f):
                         os.unlink(f)
+
 
 import fff_dqmtools
 import fff_control
 import fff_cluster
 
+
 class FFFSimulatorSocket(fff_control.Ctrl):
     """
-        This is a proxy to access run manager from a control socket.
+    This is a proxy to access run manager from a control socket.
 
-        fff_control.Ctrl already handles client connections,
-        all we have to do override handle_line function.
+    fff_control.Ctrl already handles client connections,
+    all we have to do override handle_line function.
 
-        Run manager should be set via "manager" member.
+    Run manager should be set via "manager" member.
     """
 
     def handle_line(self, line, write_f):
         # get current SimulatorRun object
         # and pass the command to it
-        run = getattr(getattr(self, 'manager', None), "current_run", None)
+        run = getattr(getattr(self, "manager", None), "current_run", None)
         if run is None:
             write_f("no active run\n")
             return
 
         run.control(line.strip(), write_f)
 
-@fff_cluster.host_wrapper(allow = ["dqmrubu-c2a06-03-01"])
+
+@fff_cluster.host_wrapper(allow=["dqmrubu-c2a06-03-01"])
 @fff_dqmtools.fork_wrapper(__name__)
 @fff_dqmtools.lock_wrapper
 def __run__(**kwargs):
@@ -589,7 +651,9 @@ def __run__(**kwargs):
     manager = RunManager(kwargs)
     manager.on_start_cleanup()
 
-    gthread, ctrl = FFFSimulatorSocket.enable(log, kwargs["lock_key"], kwargs["lock_socket"])
+    gthread, ctrl = FFFSimulatorSocket.enable(
+        log, kwargs["lock_key"], kwargs["lock_socket"]
+    )
     ctrl.manager = manager
 
     return manager.manage_forever()

@@ -10,6 +10,7 @@ import fff_dqmtools
 import gevent
 import struct
 
+
 class Ctrl(object):
     def __init__(self, log, sock, lkey):
         self.log = log
@@ -32,8 +33,9 @@ class Ctrl(object):
             self.log.info("Accepted control connection: %s", cli_sock)
 
             f = cli_sock.makefile("rw")
+
             def write_f(data):
-                f.write(data) # MAYBE CHANGE TO f.write( bytes(data, 'utf-8') ) ?
+                f.write(data)  # MAYBE CHANGE TO f.write( bytes(data, 'utf-8') ) ?
                 f.flush()
 
             while True:
@@ -77,11 +79,11 @@ if __name__ == "__main__":
     lkey = get_lock_key(sys.argv[1])
     cmd = sys.argv[2]
 
-    #sys.stderr.write("Using socket: %s\n" % lkey)
+    # sys.stderr.write("Using socket: %s\n" % lkey)
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     sock.connect("\0" + lkey)
 
-    sock.sendall( bytes(cmd + "\n", 'utf-8') )
+    sock.sendall(bytes(cmd + "\n", "utf-8"))
     sock.shutdown(socket.SHUT_WR)
 
     while True:
@@ -89,7 +91,7 @@ if __name__ == "__main__":
         if len(data) == 0:
             break
 
-        sys.stdout.write(data.decode('utf-8'))
+        sys.stdout.write(data.decode("utf-8"))
         sys.stdout.flush()
 
     sock.close()

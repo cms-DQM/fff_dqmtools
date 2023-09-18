@@ -18,8 +18,12 @@ import fff_cluster
 
 DataEntry = namedtuple("DataEntry", ["key", "path", "fsize", "ftime"])
 
-re_files = re.compile(r"^run(?P<run>\d+)/(open\/){0,1}run(?P<runf>\d+)_ls(?P<ls>\d+)(?P<leftover>_.+\.(dat|raw|pb))(\.deleted){0,1}$")
+re_files = re.compile(
+    r"^run(?P<run>\d+)/(open\/){0,1}run(?P<runf>\d+)_ls(?P<ls>\d+)(?P<leftover>_.+\.(dat|raw|pb))(\.deleted){0,1}$"
+)
 re_folders = re.compile(r"^run(?P<run>\d+)$")
+
+
 def parse_file_name(rl):
     m = re_files.match(rl)
     if not m:
@@ -30,6 +34,7 @@ def parse_file_name(rl):
 
     run_path = "run" + d["run"]
     return sort_key, run_path
+
 
 def collect(top, log):
     # entry format for files: DataEntry
@@ -85,8 +90,18 @@ def collect(top, log):
     collected_paths.sort(key=lambda x: x[0])
     return collected, collected_paths
 
+
 class FileDeleter(object):
-    def __init__(self, top, thresholds, report_directory, log, fake=True, skip_latest=False, app_tag="fff_deleter"):
+    def __init__(
+        self,
+        top,
+        thresholds,
+        report_directory,
+        log,
+        fake=True,
+        skip_latest=False,
+        app_tag="fff_deleter",
+    ):
         self.top = top
         self.fake = fake
         self.thresholds = thresholds
@@ -109,15 +124,19 @@ class FileDeleter(object):
         fn = f + ".deleted"
 
         if self.fake:
-            self.log.warning("Renaming file (fake): %s -> %s", f,
-                os.path.relpath(fn, os.path.dirname(f)))
+            self.log.warning(
+                "Renaming file (fake): %s -> %s",
+                f,
+                os.path.relpath(fn, os.path.dirname(f)),
+            )
         else:
-            self.log.warning("Renaming file: %s -> %s", f,
-                os.path.relpath(fn, os.path.dirname(f)))
+            self.log.warning(
+                "Renaming file: %s -> %s", f, os.path.relpath(fn, os.path.dirname(f))
+            )
 
-            #try:
+            # try:
             os.rename(f, fn)
-            #except:
+            # except:
             #    self.log.warning("Failed to rename file: %s", f, exc_info=True)
 
         return fn
@@ -171,11 +190,11 @@ class FileDeleter(object):
         return folder
 
     def calculate_threshold(self, type_string):
-        """ Calculates how much bytes we have to delete
-            in order to reach the threshold percentange.
+        """Calculates how much bytes we have to delete
+        in order to reach the threshold percentange.
 
-            If the threshold is set to 80% and the disk
-            at 89%, it fill return 9% in bytes.
+        If the threshold is set to 80% and the disk
+        at 89%, it fill return 9% in bytes.
         """
 
         threshold = self.thresholds[type_string]
@@ -184,8 +203,15 @@ class FileDeleter(object):
         used = total - (st.f_bavail * st.f_frsize)
         stopSize = used - float(total * threshold) / 100
 
-        self.log.info("Using %d (%.02f%%) of %d space, %d (%.02f%%) above %s threshold.",
-            used, float(used) * 100 / total, total, stopSize, float(stopSize) * 100 / total, type_string)
+        self.log.info(
+            "Using %d (%.02f%%) of %d space, %d (%.02f%%) above %s threshold.",
+            used,
+            float(used) * 100 / total,
+            total,
+            stopSize,
+            float(stopSize) * 100 / total,
+            type_string,
+        )
 
         return stopSize
 
@@ -217,12 +243,13 @@ class FileDeleter(object):
         start_cleanup = time.time()
         for entry in collected:
             sort_key, fp, fsize, ftime = entry
-            if self.skip_latest and latest_run == sort_key: continue # do not want to 
+            if self.skip_latest and latest_run == sort_key:
+                continue  # do not want to
 
             # unlink file and json older than 2 days
             # this has no effect on thresholds, but affects performance
             age = start - ftime
-            if fsize == 0 and age >= 2*24*60*60 and fp.endswith(".deleted"):
+            if fsize == 0 and age >= 2 * 24 * 60 * 60 and fp.endswith(".deleted"):
                 # remove empty and old files
                 # no one uses them anymore...
                 self.delete(fp, json=True)
@@ -248,15 +275,18 @@ class FileDeleter(object):
 
         if "delete_folders" in self.thresholds and self.thresholds["delete_folders"]:
             for entry in collected_paths:
-                if self.skip_latest and str(latest_run) in entry.path : continue
+                if self.skip_latest and str(latest_run) in entry.path:
+                    continue
 
                 # check if empty - we don't non-empty dirs
                 # empty as in a 'no stream files left to truncate' sense
-                if entry.fsize != 0: continue
+                if entry.fsize != 0:
+                    continue
 
                 # check if older than 7 days
                 age = start - entry.ftime
-                if age <= 7*24*60*60: continue
+                if age <= 7 * 24 * 60 * 60:
+                    continue
 
                 self.delete_folder(entry.path)
 
@@ -265,7 +295,9 @@ class FileDeleter(object):
 
     def make_report(self, file_count):
         if not os.path.isdir(self.report_directory):
-            self.log.warning("Directory %s does not exists. Reports disabled.", self.report_directory)
+            self.log.warning(
+                "Directory %s does not exists. Reports disabled.", self.report_directory
+            )
             return
 
         # calculate the disk usage
@@ -289,8 +321,12 @@ class FileDeleter(object):
                 "thresholds": self.thresholds,
             },
             "pid": os.getpid(),
-            "_id": "dqm-diskspace-%s-%s" % (self.hostname, self.app_tag, ),
-            "type": "dqm-diskspace"
+            "_id": "dqm-diskspace-%s-%s"
+            % (
+                self.hostname,
+                self.app_tag,
+            ),
+            "type": "dqm-diskspace",
         }
 
         final_fp = os.path.join(self.report_directory, doc["_id"] + ".jsn")
@@ -307,6 +343,7 @@ class FileDeleter(object):
 
             self.make_report(files)
             gevent.sleep(self.delay_seconds)
+
 
 ## Applet code is no longer used, but serves as an example.
 ## Actual deleters applets should import this module

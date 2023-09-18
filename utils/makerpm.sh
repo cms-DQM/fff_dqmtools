@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )"
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 BUILDDIR="$SCRIPTDIR/tmp/"
 
 echo "Our directory: $SCRIPTDIR"
@@ -9,13 +9,13 @@ rm -fr $BUILDDIR
 mkdir -p $BUILDDIR
 cd $BUILDDIR
 
-cat > fff-dqmtools.spec <<EOF
+cat >fff-dqmtools.spec <<EOF
 Name: fff-dqmtools
-Version: 1.9.4
+Version: 1.10.1
 Release: 1
 Summary: DQM tools for FFF.
 License: gpl
-Group: DQM
+Group: CMS DQM-DC
 Packager: micius
 Source: none
 %define _tmppath $BUILDDIR/build-tmp
@@ -25,7 +25,7 @@ AutoReqProv: no
 Provides:/opt/fff_dqmtools
 Provides:/etc/logrotate.d/fff_dqmtools
 Provides:/etc/init.d/fff_dqmtools
-Requires:python36, python3-gevent >= 1.2.2, python3-requests
+Requires:python38, python3-gevent >= 1.2.2, python3-requests
 %description
 DQM tools for FFF and new DQM machines.
 %prep
@@ -92,5 +92,5 @@ fi
 EOF
 
 mkdir -p RPMBUILD/{RPMS/{noarch},SPECS,BUILD,SOURCES,SRPMS}
-rpmbuild --define "_topdir `pwd`/RPMBUILD" -bb fff-dqmtools.spec
+rpmbuild --define "_topdir $(pwd)/RPMBUILD" -bb fff-dqmtools.spec
 #rm -rf patch-cmssw-tmp

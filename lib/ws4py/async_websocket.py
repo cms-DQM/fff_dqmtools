@@ -21,7 +21,8 @@ import types
 from ws4py.websocket import WebSocket as _WebSocket
 from ws4py.messaging import Message
 
-__all__ = ['WebSocket', 'EchoWebSocket']
+__all__ = ["WebSocket", "EchoWebSocket"]
+
 
 class WebSocket(_WebSocket):
     def __init__(self, proto):
@@ -51,7 +52,7 @@ class WebSocket(_WebSocket):
         Local endpoint address as a tuple
         """
         if not self._local_address:
-            self._local_address = self.proto.reader.transport.get_extra_info('sockname')
+            self._local_address = self.proto.reader.transport.get_extra_info("sockname")
             if len(self._local_address) == 4:
                 self._local_address = self._local_address[:2]
         return self._local_address
@@ -62,7 +63,7 @@ class WebSocket(_WebSocket):
         Peer endpoint address as a tuple
         """
         if not self._peer_address:
-            self._peer_address = self.proto.reader.transport.get_extra_info('peername')
+            self._peer_address = self.proto.reader.transport.get_extra_info("peername")
             if len(self._peer_address) == 4:
                 self._peer_address = self._peer_address[:2]
         return self._peer_address
@@ -80,20 +81,24 @@ class WebSocket(_WebSocket):
         """
         Close the underlying transport
         """
+
         @asyncio.coroutine
         def closeit():
             yield from self.proto.writer.drain()
             self.proto.writer.close()
+
         asyncio.async(closeit())
 
     def _write(self, data):
         """
         Write to the underlying transport
         """
+
         @asyncio.coroutine
         def sendit(data):
             self.proto.writer.write(data)
             yield from self.proto.writer.drain()
+
         asyncio.async(sendit(data))
 
     @asyncio.coroutine
@@ -116,6 +121,7 @@ class WebSocket(_WebSocket):
             self.terminate()
 
         return True
+
 
 class EchoWebSocket(WebSocket):
     def received_message(self, message):

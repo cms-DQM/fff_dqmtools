@@ -1,23 +1,33 @@
-fff_dqmtools
-============
+# `fff_dqmtools`
 
-fff_dqmtools aka DQM^2
-branch for migration to new DQM RUBU machines
+`fff_dqmtools` aka DQM^2.
 
-#### Installation
-Create a RPM locally executing `makerpm.sh`. Then:
+Twiki with more information [here](https://twiki.cern.ch/twiki/bin/viewauth/CMS/DQMOnlineFFFTools).
 
-* for the manual installation at P5 do something `./install.py --remote machine_name` with RPM stored in the same dir. This installation will be reverted by puppet months or days later.  
-* to update playback DQM machines the dropbox could be used https://twiki.cern.ch/twiki/bin/view/CMS/ClusterUsersGuide#How_to_use_the_dropbox_computer:  
-```
-ssh cmsdropbox.cms
-sudo dropbox2 -o cc7 -z cms -s dqm -u folder_with_fff_rpm/
-```
+## Building a package
 
-* to update production machines please create a JIRA ticket.
+> [!NOTE]
+> The `makerpm.sh` script will only work on RHEL-like OSes (e.g. an RHEL8 OpenStack VM).
+> To run this script you will need to install `rpmdevtools` and `rpmlint`.
 
-#### DQM^2 worflows:
-##### to update DQM^2 DB with client info:
+* Create a RPM by executing `./utils/makerpm.sh` in the repository's root folder.
+
+## Installation
+
+* For the manual installation at P5, copy the source code and the built package and then execute: `./utils/install.py --remote <machine_name>` in the respository's root folder. This installation will be undone by puppet days/months later.
+
+* To update all of the DQM machines at once, the [dropbox](https://twiki.cern.ch/twiki/bin/view/CMS/ClusterUsersGuide#How_to_use_the_dropbox_computer) could be used (you will need to be in the appropriate `*_librarian` group):
+    ```bash
+    ssh cmsdropboxcc8.cms
+    sudo dropbox2 -z cms -o cc8 -s dqm -u /folder/with/fff_dqmtools/
+    ```
+> [!INFO]
+> Once the operation completes, you will receive a report of what machines were updated.
+
+## DQM^2 worflows
+
+### To update DQM^2 DB with client info
+
 Create JSON report files in:
 https://github.com/cms-DQM/fff_dqmtools/blob/a62a1a317e1bc312c704065a43d3bd0aeb5ecc74/applets/analyze_files.py#L100
 Then read JSONs in folder:
