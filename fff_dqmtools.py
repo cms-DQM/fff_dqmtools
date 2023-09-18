@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 
 import sys, os
+
+
 def prepare_imports():
     # minihack
-    sys.path.append('/opt/hltd/python')
-    sys.path.append('/opt/hltd/lib')
+    sys.path.append("/opt/hltd/python")
+    sys.path.append("/opt/hltd/lib")
 
     thp = os.path.dirname(__file__)
     sys.path.append(os.path.join(thp, "./"))
     sys.path.append(os.path.join(thp, "./lib"))
 
-    #sys.path.insert(0, os.path.join(thp, "./lib/gevent-1.0.1-py2.6-linux-x86_64.egg"))
-    #sys.path.insert(0, os.path.join(thp, "./lib/greenlet-0.4.5-py2.6-linux-x86_64.egg"))
-    #sys.path.insert(0, os.path.join(thp, "./lib/ws4py-0.3.4-py2.6.egg"))
-    sys.path.insert(0, os.path.join(thp, "./lib/ws4py"))
+    # sys.path.insert(0, os.path.join(thp, "./lib/gevent-1.0.1-py2.6-linux-x86_64.egg"))
+    # sys.path.insert(0, os.path.join(thp, "./lib/greenlet-0.4.5-py2.6-linux-x86_64.egg"))
+    # sys.path.insert(0, os.path.join(thp, "./lib/ws4py-0.3.4-py2.6.egg"))
+    # sys.path.insert(0, os.path.join(thp, "./lib/ws4py"))
 
     # bytecode only creates problems with distribution
     # and we don't benefit much from the performance gain anyway
@@ -22,9 +24,10 @@ def prepare_imports():
         os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
         sys.dont_write_bytecode = True
 
+
 prepare_imports()
 
-import time, signal, pwd, grp
+import signal, pwd, grp
 import logging, json
 import subprocess
 import collections
@@ -33,16 +36,20 @@ import gevent
 
 # calculate installation key, used in locking
 __ipath__ = os.path.dirname(os.path.realpath(__file__))
-__ipkey__ = hashlib.sha1(__ipath__.encode('utf-8')).hexdigest()[:8]
+__ipkey__ = hashlib.sha1(__ipath__.encode("utf-8")).hexdigest()[:8]
 
 log = logging.getLogger(__name__)
 
+
 class LogCaptureHandler(logging.StreamHandler):
     """
-        A handler which output to stderr,
-        but keeps N numbers in history.
+    A handler which output to stderr,
+    but keeps N numbers in history.
     """
-    log_format = logging.Formatter('%(asctime)s: %(name)-20s - %(levelname)-8s - %(message)s')
+
+    log_format = logging.Formatter(
+        "%(asctime)s: %(name)-20s - %(levelname)-8s - %(message)s"
+    )
 
     def __init__(self):
         logging.StreamHandler.__init__(self)
@@ -51,7 +58,7 @@ class LogCaptureHandler(logging.StreamHandler):
         self.setFormatter(self.log_format)
 
         # history buffer
-        self.buffer = collections.deque(maxlen=1*1024)
+        self.buffer = collections.deque(maxlen=1 * 1024)
 
     def retrieve(self):
         return "\n".join(self.buffer)
@@ -82,6 +89,7 @@ class LogCaptureHandler(logging.StreamHandler):
         logger.setLevel(logging.INFO)
 
         return logger
+
 
 class Server(object):
     def __init__(self, opt):
@@ -135,9 +143,14 @@ class Server(object):
 
         gevent.joinall(greenlets, raise_error=True)
 
+
 def get_lock_key(name):
     key = __ipkey__
-    return "%s.%s" % (key, name, )
+    return "%s.%s" % (
+        key,
+        name,
+    )
+
 
 def lock_wrapper(f):
     # decorator which requires applet to get the lock
@@ -148,20 +161,23 @@ def lock_wrapper(f):
     # from: http://stackoverflow.com/a/7758075
     def _socket_lock(pname):
         import gevent.socket as socket
+
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
-            sock.bind('\0' + pname)
+            sock.bind("\0" + pname)
             return sock
         except socket.error:
             return None
 
     def wrapper(*kargs, **kwargs):
-        logger = kwargs['logger']
+        logger = kwargs["logger"]
 
         lkey = get_lock_key(kwargs["name"])
         lock = _socket_lock(lkey)
         if lock is None:
-            raise Exception("Could not get the lock for %s, path: %s" % (lkey, __ipath__))
+            raise Exception(
+                "Could not get the lock for %s, path: %s" % (lkey, __ipath__)
+            )
 
         kwargs["lock_socket"] = lock
         kwargs["lock_key"] = lkey
@@ -171,20 +187,24 @@ def lock_wrapper(f):
 
     return wrapper
 
+
 def setuid(uid, gid):
     try:
         if isinstance(uid, str):
-            uid = pwd.getpwnam(uid).pw_uid # get user id from user name https://docs.python.org/3/library/pwd.html
+            uid = pwd.getpwnam(
+                uid
+            ).pw_uid  # get user id from user name https://docs.python.org/3/library/pwd.html
 
         if isinstance(gid, str):
-            gid = grp.getgrnam(gid).gr_gid # get group id from group name
+            gid = grp.getgrnam(gid).gr_gid  # get group id from group name
 
         os.setgid(gid)
         os.setuid(uid)
     except Exception as e:
-        print( e )
+        print(e)
         sys.stderr.write("Can't set the uid/gid: %s\n" % str(e))
         sys.stderr.flush()
+
 
 def _select_readlines(fd):
     import gevent.select as select
@@ -201,7 +221,7 @@ def _select_readlines(fd):
         assert fd in rlist
 
         buf = os.read(fd, 4096)
-        buf = buf.decode('utf-8')
+        buf = buf.decode("utf-8")
         if len(buf) == 0:
             if lbuf:
                 yield "".join(lbuf)
@@ -216,12 +236,15 @@ def _select_readlines(fd):
             while len(lbuf) > 1:
                 yield lbuf.pop(0) + "\n"
 
+
 def _pr_set_deathsig():
     # ensure the child dies if we are SIGKILLED
     import ctypes
+
     libc = ctypes.CDLL("libc.so.6")
     PR_SET_PDEATHSIG = 1
     libc.prctl(PR_SET_PDEATHSIG, signal.SIGKILL)
+
 
 def _execute_module(module_name, logger, append_environ, **wrapper_kwargs):
     # find the interpreter and the config file
@@ -230,7 +253,7 @@ def _execute_module(module_name, logger, append_environ, **wrapper_kwargs):
     env = os.environ.copy()
     env["PYTHONPATH"] = __ipath__ + ":" + env.get("PYTHONPATH", "")
 
-    for k,v in append_environ.items():
+    for k, v in append_environ.items():
         env[k] = v
 
     logger.info("Spawning process with args: %s", repr(args))
@@ -238,19 +261,20 @@ def _execute_module(module_name, logger, append_environ, **wrapper_kwargs):
     def preexec():
         # setting setuid clears PR_SET_PDEATHSIG
         # so do it before setting it
-        if 'uid' in wrapper_kwargs:
+        if "uid" in wrapper_kwargs:
             setuid(wrapper_kwargs["uid"], wrapper_kwargs["gid"])
 
         _pr_set_deathsig()
 
-    proc = subprocess.Popen(args,
-        shell = False,
-        bufsize = 1,
-        close_fds = True,
-        stdout = subprocess.PIPE,
-        stderr = subprocess.STDOUT,
-        preexec_fn = preexec,
-        env = env,
+    proc = subprocess.Popen(
+        args,
+        shell=False,
+        bufsize=1,
+        close_fds=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        preexec_fn=preexec,
+        env=env,
     )
 
     # unfortunately, we are using super old version of gevent
@@ -267,6 +291,7 @@ def _execute_module(module_name, logger, append_environ, **wrapper_kwargs):
     finally:
         proc.stdout.close()
 
+
 def _execute_child():
     kwargs = json.loads(os.getenv("FFF_DQMTOOLS_CHILD"))
 
@@ -278,7 +303,13 @@ def _execute_child():
 
     # check for setuid
     name = pwd.getpwuid(os.getuid())[0]
-    logger.info("Running as uid=%s(%s) gid=%s groups=(%s)", os.getuid(), name, os.getgid(), os.getgroups())
+    logger.info(
+        "Running as uid=%s(%s) gid=%s groups=(%s)",
+        os.getuid(),
+        name,
+        os.getgid(),
+        os.getgroups(),
+    )
 
     # just run the function and exit
     applet = kwargs["name"]
@@ -288,6 +319,7 @@ def _execute_child():
 
     ret = mod.__run__(**kwargs)
     sys.exit(ret)
+
 
 def fork_wrapper_decorate(func, **wrapper_kwargs):
     # this function (decorator) has two entries:
@@ -308,18 +340,19 @@ def fork_wrapper_decorate(func, **wrapper_kwargs):
     if os.getenv("FFF_DQMTOOLS_CHILD") is not None:
         return func
     else:
+
         def execute_loop(**kwargs):
             # get the logger, it is set up by Server()
             logger = kwargs["logger"]
 
             module_name = kwargs["module_name"]
-            print( kwargs["module"] )
+            print(kwargs["module"])
 
             kwopts = {
                 "opts": kwargs["opts"],
                 "name": kwargs["name"],
                 "module_name": module_name,
-            };
+            }
 
             env = {}
             env["FFF_DQMTOOLS_CHILD"] = json.dumps(kwopts)
@@ -330,15 +363,21 @@ def fork_wrapper_decorate(func, **wrapper_kwargs):
                     logger.info("Process %s exitted, error code: %d", module_name, ec)
                     break
 
-                logger.warning("Process %s exitted, error code: %d, will be restarted.", module_name, ec)
+                logger.warning(
+                    "Process %s exitted, error code: %d, will be restarted.",
+                    module_name,
+                    ec,
+                )
                 gevent.sleep(15)
 
         # since we act as a decorator
         # we have to return a function a new function
         return execute_loop
 
+
 def fork_wrapper(__name_mod, **wrapper_kwargs):
     return lambda f: fork_wrapper_decorate(f, **wrapper_kwargs)
+
 
 def detach(logfile, pidfile):
     # do the double fork
@@ -362,6 +401,7 @@ def detach(logfile, pidfile):
         f = open(pidfile, "w")
         f.write("%d\n" % os.getpid())
         f.close()
+
 
 # this is no longer used
 # this process only acts as a supervisor, if it crashes - let it crash
@@ -391,73 +431,72 @@ def detach(logfile, pidfile):
 if __name__ == "__main__":
     if os.getenv("FFF_DQMTOOLS_CHILD") is not None:
         _execute_child()
-        sys.exit(1) # child should exit itself
+        sys.exit(1)  # child should exit itself
 
     default_applets = [
-        "fff_web", "fff_selftest", "fff_logcleaner", "fff_logcleaner_gzip", "fff_filemonitor",
-
-        "fff_deleter_c2a06_01_01", "fff_deleter_playback_c2a06_03_01",
-        "fff_deleter_lookarea_c2a06_05_01", "fff_deleter_minidaq_c2a06_05_01",
+        "fff_web",
+        "fff_selftest",
+        "fff_logcleaner",
+        "fff_logcleaner_gzip",
+        "fff_filemonitor",
+        "fff_deleter_c2a06_01_01",
+        "fff_deleter_playback_c2a06_03_01",
+        "fff_deleter_lookarea_c2a06_05_01",
+        "fff_deleter_minidaq_c2a06_05_01",
         "fff_deleter_minidaq_cms904",
-
         "fff_simulator",
-	"analyze_files", "analyze_files_lookarea_c2a06_05_01", "analyze_releases",
-    ]        
+        "analyze_files",
+        "analyze_files_lookarea_c2a06_05_01",
+        "analyze_releases",
+    ]
 
     config_web_secret = "changeme"
-    try: 
-      sys.path.append('/var/lib/fff_dqmtools/')
-      import fff_config
-      config_web_secret = fff_config.web_secret
-    except: pass
-    opt = {
-        'do_foreground': False,
-        'path': "/tmp/dqm_monitoring/",
-        'applets': default_applets,
+    try:
+        sys.path.append("/var/lib/fff_dqmtools/")
+        import fff_config
 
+        config_web_secret = fff_config.web_secret
+    except:
+        pass
+    opt = {
+        "do_foreground": False,
+        "path": "/tmp/dqm_monitoring/",
+        "applets": default_applets,
         "logfile": "/var/log/fff_dqmtools.log",
         "pidfile": "/var/run/fff_dqmtools.pid",
-
         "hltd_logfile": "/var/log/hltd/hltd.log",
         "anelastic_logfile": "/var/log/hltd/anelastic.log",
-
         "web.db": "/var/lib/fff_dqmtools/db.20171027.sqlite3",
         "web.port": 9215,
         "web.secret": config_web_secret,
         "web.secret_name": "selenium-secret-secret",
-
-        "cmssw_path_playback":"/dqmdata/dqm_cmssw/current_playback",
-        "cmssw_path_production":"/dqmdata/dqm_cmssw/current_production",
-        "dqm_clients_subdir":"/src/DQM/Integration/python/clients/",
-        "hltd_clients_path":"/etc/appliance/dqm_resources/",
-
+        "cmssw_path_playback": "/dqmdata/dqm_cmssw/current_playback",
+        "cmssw_path_production": "/dqmdata/dqm_cmssw/current_production",
+        "dqm_clients_subdir": "/src/DQM/Integration/python/clients/",
+        "hltd_clients_path": "/etc/appliance/dqm_resources/",
         "deleter.ramdisk": "/fff/ramdisk/",
         "deleter.tag": "fff_deleter",
         "deleter.fake": False,
-
         "simulator.conf": "/etc/fff_simulator_dqmtools.conf",
     }
 
     key_types = {
         "logfile": str,
         "pidfile": str,
-
         "hltd_logfile": str,
         "anelastic_logfile": str,
-
         "web.port": int,
         "web.db": str,
         "web.secret": str,
         "web.secret_name": str,
-
         "deleter.ramdisk": str,
         "deleter.tag": str,
         "deleter.fake": bool,
-
         "simulator.conf": str,
     }
 
     import fff_cluster
+
     c = fff_cluster.get_node()
 
     arg = sys.argv[1:]
@@ -481,7 +520,7 @@ if __name__ == "__main__":
             opt[key] = t(arg.pop(0))
             continue
 
-        sys.stderr.write("Invalid parameter: %s.\n" % a);
+        sys.stderr.write("Invalid parameter: %s.\n" % a)
         sys.stderr.flush()
         sys.exit(1)
 
@@ -495,7 +534,7 @@ if __name__ == "__main__":
 
     # reconfigure our log
     # we have everything set up for it
-    log = srv.config_log('root')
+    log = srv.config_log("root")
 
     # join the mega-event-loop
     log.info("Service started, pid is %d.", os.getpid())

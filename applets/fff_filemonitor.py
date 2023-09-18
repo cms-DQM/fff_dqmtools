@@ -14,6 +14,7 @@ import json
 
 import fff_dqmtools
 
+
 def atomic_read_delete(fp):
     import os, stat, fcntl, errno
 
@@ -24,7 +25,7 @@ def atomic_read_delete(fp):
     os.rename(fp, tmp_fp)
 
     # ensure the file is regular!
-    flags = os.O_RDWR|os.O_NOFOLLOW|os.O_NOCTTY|os.O_NONBLOCK|os.O_NDELAY
+    flags = os.O_RDWR | os.O_NOFOLLOW | os.O_NOCTTY | os.O_NONBLOCK | os.O_NDELAY
     try:
         fd = os.open(tmp_fp, flags)
     except OSError as e:
@@ -58,17 +59,20 @@ def atomic_read_delete(fp):
 
     return b
 
+
 def atomic_create_write(fp, body, mode=0o600):
     import tempfile
 
     dir = os.path.dirname(fp)
     prefix = os.path.basename(fp)
 
-    f = tempfile.NamedTemporaryFile(prefix=prefix + ".", suffix=".tmp", dir=dir, delete=False)
+    f = tempfile.NamedTemporaryFile(
+        prefix=prefix + ".", suffix=".tmp", dir=dir, delete=False
+    )
 
     try:
         tmp_fp = f.name
-        f.write( body.encode('utf-8') )
+        f.write(body.encode("utf-8"))
         f.close()
 
         if mode != 0o600:
@@ -79,6 +83,7 @@ def atomic_create_write(fp, body, mode=0o600):
         os.unlink(tmp_fp)
         raise
 
+
 def http_upload(lst_gen, port, log=None, test_webserver=False):
     url = "http://127.0.0.1:%d/_upload/" % port
     docs = list(filter(lambda x: x is not None, lst_gen))
@@ -86,21 +91,27 @@ def http_upload(lst_gen, port, log=None, test_webserver=False):
     if (not test_webserver) and (len(docs) == 0):
         return 0
 
-    data = json.dumps({ "docs": docs })
-    r = urllib.request.Request(url, data.encode('utf-8'), {'Content-Type': 'application/json'})
+    data = json.dumps({"docs": docs})
+    r = urllib.request.Request(
+        url, data.encode("utf-8"), {"Content-Type": "application/json"}
+    )
 
     f = None
     try:
         f = urllib.request.urlopen(r)
         resp = f.read()
     except urllib.error.HTTPError:
-        if log: log.warning("Couldn't upload files to a web instance: %s", url, exc_info=True)
+        if log:
+            log.warning(
+                "Couldn't upload files to a web instance: %s", url, exc_info=True
+            )
         raise
     finally:
         if f is not None:
             f.close()
 
     return len(docs)
+
 
 class FileMonitor(object):
     def __init__(self, path, port, log):
@@ -121,8 +132,9 @@ class FileMonitor(object):
             pass
 
         try:
-            os.chmod(self.path,
-                stat.S_IRWXU |  stat.S_IRWXG | stat.S_IRWXO | stat.S_ISVTX)
+            os.chmod(
+                self.path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO | stat.S_ISVTX
+            )
         except OSError:
             pass
 
@@ -131,14 +143,26 @@ class FileMonitor(object):
 
         ret = subprocess.call(["mountpoint", "-q", path])
         if ret == 0:
-            self.log.info("Mountpoint found at %s.",  path)
+            self.log.info("Mountpoint found at %s.", path)
         elif ret == 1 and os.geteuid() == 0:
             lock = os.path.join(path, ".dqm_ramdisk")
             if os.path.exists(lock):
-                self.log.warning("Mountpoint not mounted, but .dqm_ramdisk found in %s.",  lock)
+                self.log.warning(
+                    "Mountpoint not mounted, but .dqm_ramdisk found in %s.", lock
+                )
                 return 0
 
-            ret = subprocess.call(["mount", "-t", "tmpfs", "-o", "dev,noexec,nosuid,size=256m", "dqm_monitoring_ramdisk", path])
+            ret = subprocess.call(
+                [
+                    "mount",
+                    "-t",
+                    "tmpfs",
+                    "-o",
+                    "dev,noexec,nosuid,size=256m",
+                    "dqm_monitoring_ramdisk",
+                    path,
+                ]
+            )
             open(lock, "w").close()
             self.log.info("Mountpoint mounted at %s, exit code: %d", path, ret)
         else:
@@ -146,7 +170,7 @@ class FileMonitor(object):
 
     def file_reader_gen(self, lst):
         for fp in lst:
-            #self.log.info("Uploading: %s", fp)
+            # self.log.info("Uploading: %s", fp)
             try:
                 # output a None to let the uploader know that we are serious
                 # (i am actually serious, it is used for synchronization)
@@ -156,7 +180,7 @@ class FileMonitor(object):
                 yield json.loads(body)
             except:
                 self.log.warning("Failure to read the document: %s", fp, exc_info=True)
-                #raise Exception("Please restart.")
+                # raise Exception("Please restart.")
 
     def scan_dir(self, max_count=None):
         lst = os.listdir(self.path)
@@ -165,8 +189,10 @@ class FileMonitor(object):
             fp = os.path.join(self.path, f)
 
             fname = os.path.basename(fp)
-            if fname.startswith("."): continue
-            if not fname.endswith(".jsn"): continue
+            if fname.startswith("."):
+                continue
+            if not fname.endswith(".jsn"):
+                continue
 
             to_upload.append(fp)
 
@@ -179,7 +205,9 @@ class FileMonitor(object):
         return self.file_reader_gen(to_upload), restart_needed
 
     def process_dir(self):
-        if ((time.time() - self.last_scan) >= 0) and ((time.time() - self.last_scan) < 5):
+        if ((time.time() - self.last_scan) >= 0) and (
+            (time.time() - self.last_scan) < 5
+        ):
             # we don't want to update too often
             # returning True means we will be called again in one second
 
@@ -262,7 +290,7 @@ class FileMonitor(object):
                 # clear the events
                 # this sometimes fails due to a bug in inotify
                 for event in w.read(bufsize=0):
-                    #self.log.info("got event %s", repr(event))
+                    # self.log.info("got event %s", repr(event))
                     pass
 
                 pass
@@ -285,6 +313,7 @@ class FileMonitor(object):
         # if not, this script  will fail and restart
         def is_webserver_running():
             http_upload([], port=self.port, log=self.log, test_webserver=True)
+
         is_webserver_running()
 
         try:
@@ -292,6 +321,7 @@ class FileMonitor(object):
         except ImportError:
             self.log.warning("Running without inotify, super slow!", exc_info=True)
             self.run_slow()
+
 
 @fff_dqmtools.fork_wrapper(__name__)
 @fff_dqmtools.lock_wrapper
@@ -301,5 +331,5 @@ def __run__(opts, **kwargs):
     path = opts["path"]
     port = opts["web.port"]
 
-    fmon = FileMonitor(path = path, log = log, port = port)
+    fmon = FileMonitor(path=path, log=log, port=port)
     fmon.run_greenlet()

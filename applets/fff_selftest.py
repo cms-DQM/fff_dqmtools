@@ -13,6 +13,7 @@ import applets.fff_filemonitor as fff_filemonitor
 
 log = logging.getLogger(__name__)
 
+
 class FFFMonitoringTest(object):
     def __init__(self, path, server=None):
         hostname = socket.gethostname()
@@ -26,7 +27,7 @@ class FFFMonitoringTest(object):
             "extra": {},
             "pid": os.getpid(),
             "_id": "dqm-stats-%s" % hostname,
-            "type": "dqm-stats"
+            "type": "dqm-stats",
         }
 
     def make_selftest(self):
@@ -45,16 +46,21 @@ class FFFMonitoringTest(object):
             doc["extra"]["loggers"] = entry
 
         meminfo = list(open("/proc/meminfo", "r").readlines())
+
         def entry_to_dict(line):
             key, value = line.split()[:2]
             value = int(value)
-            return (key.strip(":"), value, )
+            return (
+                key.strip(":"),
+                value,
+            )
+
         meminfo = dict(map(entry_to_dict, meminfo))
         doc["extra"]["meminfo"] = meminfo
 
-        #p = subprocess.Popen(["df", "-hP"], stdout=subprocess.PIPE)
-        #doc["extra"]["df"] = p.communicate()[0]
-        #del p
+        # p = subprocess.Popen(["df", "-hP"], stdout=subprocess.PIPE)
+        # doc["extra"]["df"] = p.communicate()[0]
+        # del p
 
         doc["memory_used"] = (meminfo["MemTotal"] - meminfo["MemFree"]) * 1024
         doc["memory_free"] = meminfo["MemFree"] * 1024
@@ -77,7 +83,8 @@ class FFFMonitoringTest(object):
             except:
                 log.warning("Failed to create a report!", exc_info=True)
 
-            gevent.sleep(15+60)
+            gevent.sleep(15 + 60)
+
 
 # no wrappers, it runs in the main/supervisor process
 def __run__(opts, **kwargs):
@@ -85,8 +92,9 @@ def __run__(opts, **kwargs):
     log = kwargs["logger"]
     server = kwargs["server"]
 
-    f = FFFMonitoringTest(path = opts["path"], server = server)
+    f = FFFMonitoringTest(path=opts["path"], server=server)
     f.run_greenlet()
+
 
 if __name__ == "__main__":
     x = FFFMonitoringTest(path="./")
