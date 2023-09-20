@@ -378,6 +378,10 @@ class SyncSocket(WebSocket):
                 self._peer_address = peer_address
 
             def send(self, msg, binary=False):
+                if binary and isinstance(msg, str):
+                    msg = msg.encode("utf-8")
+                elif not binary and isinstance(msg, bytes):
+                    msg = msg.decode("utf-8")
                 output_messages.append(msg)
 
             @property
