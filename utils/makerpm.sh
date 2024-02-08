@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )"
+SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 BUILDDIR="$SCRIPTDIR/tmp/"
 
 echo "Our directory: $SCRIPTDIR"
@@ -9,7 +9,7 @@ rm -fr $BUILDDIR
 mkdir -p $BUILDDIR
 cd $BUILDDIR
 
-cat > fff-dqmtools.spec <<EOF
+cat >fff-dqmtools.spec <<EOF
 Name: fff-dqmtools
 Version: 1.9.4
 Release: 1
@@ -92,5 +92,5 @@ fi
 EOF
 
 mkdir -p RPMBUILD/{RPMS/{noarch},SPECS,BUILD,SOURCES,SRPMS}
-rpmbuild --define "_topdir `pwd`/RPMBUILD" -bb fff-dqmtools.spec
+rpmbuild --define "_topdir $(pwd)/RPMBUILD" -bb fff-dqmtools.spec
 #rm -rf patch-cmssw-tmp
