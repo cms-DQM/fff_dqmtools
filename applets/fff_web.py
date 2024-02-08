@@ -432,9 +432,9 @@ class WebServer(bottle.Bottle):
                 # set CORS headers
                 response.headers["Access-Control-Allow-Origin"] = "*"
                 response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-                response.headers[
-                    "Access-Control-Allow-Headers"
-                ] = "Origin, Accept, Content-Type, X-Requested-With, X-CSRF-Token"
+                response.headers["Access-Control-Allow-Headers"] = (
+                    "Origin, Accept, Content-Type, X-Requested-With, X-CSRF-Token"
+                )
                 response.headers["Access-Control-Allow-Credentials"] = "true"
 
                 if bottle.request.method != "OPTIONS":
