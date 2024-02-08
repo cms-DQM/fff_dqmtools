@@ -443,6 +443,32 @@ class WebServer(bottle.Bottle):
 
             return _enable_cors
 
+        def get_cookie(key, raw_cookies):
+            """
+            Helper method which replaces bottle.request.get_cookie which
+            has different behavior for python2 and 3.
+            Internally, bottle calls SimpleCookie to parse the cookie string.
+            CMSWEB prepends a string before the custom cookies, which breaks
+            the parsing.
+
+            A simple example is:
+
+            from http.cookie import SimpleCookie
+            SimpleCookie('1234; test=data').values()
+
+            The above worked for python2 but not for 3.
+            NB: Bottle is unmaintained since 2014, as of writing.
+            """
+            cookies = raw_cookies.split(";")
+            for cookie in cookies:
+                cookie = cookie.strip()
+                if "=" not in cookie or key not in cookie:
+                    continue
+                cookie_key, cookie_value = cookie.split("=")
+                if cookie_key == key:
+                    return cookie_value
+            return None
+
         def check_secret(secret_value):
             return secret_value == self.secret
 
@@ -459,7 +485,9 @@ class WebServer(bottle.Bottle):
                 log.debug(str(bottle.request.cookies.items()))
 
                 if "cmsweb" in bottle.request.url:
-                    secret = bottle.request.get_cookie(self.secret_name)
+                    secret = get_cookie(
+                        self.secret_name, bottle.request.headers.raw("Cookie")
+                    )
                     if not check_secret(secret):
                         log.info("answer BAD host=%s", host)
                         bottle.redirect("https://cmsweb.cern.ch/")
@@ -784,7 +812,7 @@ class WebServer(bottle.Bottle):
                     answer = fff_cluster.get_dqm_clients(host, cmssw_path, clients_path)
                     return json.dumps(answer)
 
-                if what == "change_dqm_client":
+                elif what == "change_dqm_client":
                     host = bottle.request.query.get("host", default=None)
                     playback = bottle.request.query.get("playback", default=True)
                     cmssw_path = (
@@ -801,7 +829,7 @@ class WebServer(bottle.Bottle):
                     )
                     return answer
 
-                if what == "get_cmssw_info":
+                elif what == "get_cmssw_info":
                     answer_1 = fff_cluster.get_cmssw_info(
                         self.opts["cmssw_path_playback"]
                     )
@@ -816,35 +844,35 @@ class WebServer(bottle.Bottle):
                     )
                     return answer
 
-                if what == "get_dqm_machines":
+                elif what == "get_dqm_machines":
                     nodes = fff_cluster.get_node()
                     nodes = nodes["_all"]
                     if bottle.request.query.get("kind"):
-                        type = bottle.request.query.get("kind")  # answer
+                        type_ = bottle.request.query.get("kind")  # answer
                         for key, lst in nodes.items():
-                            if type in key:
+                            if type_ in key:
                                 return json.dumps(lst)
                         return json.dumps([])
                     return json.dumps(nodes)
 
-                if what == "get_hltd_versions":
+                elif what == "get_hltd_versions":
                     answer = fff_cluster.get_rpm_version_all("/opt/hltd")
                     return json.dumps(answer)
 
-                if what == "get_fff_versions":
+                elif what == "get_fff_versions":
                     answer = fff_cluster.get_rpm_version_all("/opt/fff_dqmtools")
                     return json.dumps(answer)
 
-                if what == "get_simulator_config":
+                elif what == "get_simulator_config":
                     host = bottle.request.query.get(
                         "host", default="dqmrubu-c2a06-03-01"
                     )
                     answer = fff_cluster.get_simulator_config(
                         self.opts, fff_cluster.get_host(), host
                     )
-                    return json.dumps(answer)
+                    return json.dumps(answer.decode("utf-8"))
 
-                if what == "get_simulator_runs":
+                elif what == "get_simulator_runs":
                     host = bottle.request.query.get(
                         "host", default="dqmrubu-c2a06-03-01"
                     )
@@ -853,21 +881,21 @@ class WebServer(bottle.Bottle):
                     )
                     return json.dumps(answer)
 
-                if what == "restart_hltd":
+                elif what == "restart_hltd":
                     host = bottle.request.query.get("host", default=None)
                     answer = "Specify host to restart HLTD"
                     if host:
                         answer = fff_cluster.restart_hltd(host)
                     return answer
 
-                if what == "restart_fff":
+                elif what == "restart_fff":
                     host = bottle.request.query.get("host", default=None)
                     answer = "Specify host to restart FFF"
                     if host:
                         answer = fff_cluster.restart_fff(host)
                     return answer
 
-                if what == "get_hltd_logs":
+                elif what == "get_hltd_logs":
                     host = bottle.request.query.get("host", default=None)
                     answer = ["Specify host HLTD", "Specify host HLTD"]
                     if host:
@@ -881,7 +909,7 @@ class WebServer(bottle.Bottle):
                         answer = [answer_hltd, answer_anelastic]
                     return json.dumps(answer)
 
-                if what == "get_fff_logs":
+                elif what == "get_fff_logs":
                     host = bottle.request.query.get("host", default=None)
                     answer = "Specify host FFF"
                     if host:
@@ -890,7 +918,7 @@ class WebServer(bottle.Bottle):
                         )
                     return json.dumps([answer])
 
-                if what == "start_playback_run":
+                elif what == "start_playback_run":
                     host = bottle.request.query.get(
                         "host", default="dqmrubu-c2a06-03-01"
                     )
@@ -940,7 +968,7 @@ class WebServer(bottle.Bottle):
 
             except Exception as error_log:
                 bottle.response.status = 400
-                log.warning("cr_api(): get_dqm_machines error")
+                log.warning(f"cr_api(): {what} error")
                 log.warning(error_log)
                 return error_log
             log.warning(

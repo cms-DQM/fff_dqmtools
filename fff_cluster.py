@@ -35,6 +35,10 @@ def popen_timeout(cmd, seconds=10):
         answer, stderr = p.communicate()
     except Exception as error_log:
         answer = error_log
+    if isinstance(answer, bytes):
+        answer = answer.decode("utf-8", errors="ignore")
+    if isinstance(stderr, bytes):
+        stderr = stderr.decode("utf-8", errors="ignore")
     if p.returncode:
         answer = stderr
     timer.cancel()
