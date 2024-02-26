@@ -22,8 +22,14 @@ clusters = {
     "lookarea_c2a06": ["dqmrubu-c2a06-05-01.cms"],
 }
 
+# Make sure the keys of this dictionary start with "production", "playback" or "lookarea"
+assert all(
+    cluster_name.split("_")[0] in ["production", "playback", "lookarea"]
+    for cluster_name in clusters
+)
 
-def popen_timeout(cmd, seconds=10):
+
+def popen_timeout(cmd: str, seconds: int = 10):
     kill = lambda process: process.kill()
     p = subprocess.Popen(
         cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -53,7 +59,7 @@ def get_rpm_version(host, soft_path):
     return popen_timeout(["ssh " + host + ' "rpm -qf ' + soft_path + '"'], 5)
 
 
-def get_rpm_version_all(soft_path):
+def get_rpm_version_all(soft_path: str):
     answer = {}
     for key, lst in clusters.items():
         subanswer = {}
@@ -65,7 +71,7 @@ def get_rpm_version_all(soft_path):
     return answer
 
 
-def get_cmssw_info(cmssw_path):
+def get_cmssw_info(cmssw_path: str) -> str:
     if not cmssw_path:
         return "cmssw_path argument not defined"
     if cmssw_path[-1] != "/":
@@ -118,7 +124,7 @@ def get_cmssw_info(cmssw_path):
     return answer
 
 
-def get_dqm_clients(host, cmssw_path, clients_path):
+def get_dqm_clients(host: str, cmssw_path: str, clients_path: str) -> list:
     if not host:
         return "host argument not defined"
     if not cmssw_path:
@@ -137,7 +143,9 @@ def get_dqm_clients(host, cmssw_path, clients_path):
     return answer
 
 
-def change_dqm_client(host, cmssw_path, clients_path, client, state):
+def change_dqm_client(
+    host: str, cmssw_path: str, clients_path: str, client: str, state: str
+) -> str:
     answer = None
     if state == "0":
         answer = popen_timeout(
@@ -164,7 +172,7 @@ def change_dqm_client(host, cmssw_path, clients_path, client, state):
     return answer
 
 
-def get_simulator_config(opts, this_host, simulator_host):
+def get_simulator_config(opts: dict, this_host: str, simulator_host: str) -> str:
     if not simulator_host:
         return "host argument not defined"
     path = opts["simulator.conf"]
@@ -176,7 +184,7 @@ def get_simulator_config(opts, this_host, simulator_host):
     return cfg
 
 
-def update_config(cfg, key, value):
+def update_config(cfg: dict, key: str, value) -> dict:
     if not key:
         return cfg
     if not key in cfg:
@@ -187,7 +195,7 @@ def update_config(cfg, key, value):
     return cfg
 
 
-def write_config(opts, cfg):  # only locally
+def write_config(opts: dict, cfg: dict):  # only locally
     path = "/tmp/" + os.path.basename(opts["simulator.conf"])
     f = open(path, "w")
     json.dump(cfg, f, sort_keys=True, indent=2)
@@ -196,7 +204,7 @@ def write_config(opts, cfg):  # only locally
     return answer
 
 
-def get_simulator_runs(opts, this_host, simulator_host):
+def get_simulator_runs(opts: dict, this_host: str, simulator_host: str) -> list:
     if not simulator_host:
         return []
     cfg_json = get_simulator_config(opts, this_host, simulator_host)
@@ -215,7 +223,7 @@ def get_simulator_runs(opts, this_host, simulator_host):
     return runs
 
 
-def restart_hltd(host):
+def restart_hltd(host: str) -> str:
     if not host:
         return "host argument not defined"
     answer = popen_timeout(
@@ -231,7 +239,7 @@ def restart_hltd(host):
     return answer
 
 
-def restart_fff(host):
+def restart_fff(host: str) -> str:
     if not host:
         return "host argument not defined"
     answer = popen_timeout(
@@ -242,7 +250,7 @@ def restart_fff(host):
     return answer
 
 
-def get_txt_file(host, path, timeout=30):
+def get_txt_file(host: str, path: str, timeout=30):
     if not host:
         return "host argument not defined"
     if not path:
@@ -250,13 +258,13 @@ def get_txt_file(host, path, timeout=30):
     return popen_timeout(["ssh " + host + ' "cat ' + path + '"'], timeout)
 
 
-def get_host():
+def get_host() -> str:
     host = socket.gethostname()
     host = host.lower()
     return host
 
 
-def get_node():
+def get_node() -> dict:
     host = get_host()
 
     current = {
@@ -273,8 +281,8 @@ def get_node():
     return current
 
 
-def host_wrapper(allow=[]):
-    """This is decorator for function.
+def host_wrapper(allow: list):
+    """This is function decorator.
     Runs a function of the given hosts,
     just returns on others.
     """

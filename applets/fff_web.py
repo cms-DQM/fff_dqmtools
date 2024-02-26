@@ -364,7 +364,7 @@ class SyncSocket(WebSocket):
             log.warning("WebSocket error.", exc_info=True)
 
     @staticmethod
-    def proxy_mode(input_messages, peer_address):
+    def proxy_mode(input_messages: list, peer_address: str) -> list:
         # emulate a websocket
         # create it, parse messages and capture everything we send to it
         # we don't need to suppress self.db.add_listener as it has no effect
@@ -676,7 +676,7 @@ class WebServer(bottle.Bottle):
                 yield decoder.flush()
                 if decoder.unused_data:
                     yield "<!-- gzip stream unfinished, bytes in buffer: %d -->\n" % len(
-                        decoded.unused_data
+                        decoder.unused_data
                     )
 
         def decode_log(fn):
@@ -809,8 +809,10 @@ class WebServer(bottle.Bottle):
                     )
                     cmssw_path += self.opts["dqm_clients_subdir"]
                     clients_path = self.opts["hltd_clients_path"]
-                    answer = fff_cluster.get_dqm_clients(host, cmssw_path, clients_path)
-                    return json.dumps(answer)
+                    bottle.response.body = json.dumps(
+                        fff_cluster.get_dqm_clients(host, cmssw_path, clients_path)
+                    )
+                    return bottle.response
 
                 elif what == "change_dqm_client":
                     host = bottle.request.query.get("host", default=None)
@@ -824,10 +826,10 @@ class WebServer(bottle.Bottle):
                     clients_path = self.opts["hltd_clients_path"]
                     client = bottle.request.query.get("client", default=None)
                     state = bottle.request.query.get("state", default=0)
-                    answer = fff_cluster.change_dqm_client(
+                    bottle.response.body = fff_cluster.change_dqm_client(
                         host, cmssw_path, clients_path, client, state
                     )
-                    return answer
+                    return bottle.response
 
                 elif what == "get_cmssw_info":
                     answer_1 = fff_cluster.get_cmssw_info(
@@ -836,64 +838,77 @@ class WebServer(bottle.Bottle):
                     answer_2 = fff_cluster.get_cmssw_info(
                         self.opts["cmssw_path_production"]
                     )
-                    answer = (
+                    bottle.response.body = (
                         "\n<strong>Playback:</strong>\n"
                         + answer_1
                         + "\n<strong>Production:</strong>\n"
                         + answer_2
                     )
-                    return answer
+
+                    return bottle.response.body
 
                 elif what == "get_dqm_machines":
-                    nodes = fff_cluster.get_node()
-                    nodes = nodes["_all"]
+                    nodes = fff_cluster.get_node()["_all"]
                     if bottle.request.query.get("kind"):
                         type_ = bottle.request.query.get("kind")  # answer
                         for key, lst in nodes.items():
                             if type_ in key:
-                                return json.dumps(lst)
-                        return json.dumps([])
-                    return json.dumps(nodes)
+                                bottle.response.body = json.dumps(lst)
+                                return bottle.response
+                        bottle.response.body = json.dumps([])
+                        return bottle.response
+                    bottle.response.body = json.dumps(nodes)
+                    return bottle.response
 
                 elif what == "get_hltd_versions":
-                    answer = fff_cluster.get_rpm_version_all("/opt/hltd")
-                    return json.dumps(answer)
+                    bottle.response.body = json.dumps(
+                        fff_cluster.get_rpm_version_all("/opt/hltd")
+                    )
+                    return bottle.response
 
                 elif what == "get_fff_versions":
-                    answer = fff_cluster.get_rpm_version_all("/opt/fff_dqmtools")
-                    return json.dumps(answer)
+                    bottle.response.body = json.dumps(
+                        fff_cluster.get_rpm_version_all("/opt/fff_dqmtools")
+                    )
+                    return bottle.response
 
                 elif what == "get_simulator_config":
                     host = bottle.request.query.get(
                         "host", default="dqmrubu-c2a06-03-01"
                     )
-                    answer = fff_cluster.get_simulator_config(
+                    bottle.response.body = fff_cluster.get_simulator_config(
                         self.opts, fff_cluster.get_host(), host
                     )
-                    return json.dumps(answer.decode("utf-8"))
+                    return bottle.response
 
                 elif what == "get_simulator_runs":
                     host = bottle.request.query.get(
                         "host", default="dqmrubu-c2a06-03-01"
                     )
-                    answer = fff_cluster.get_simulator_runs(
-                        self.opts, fff_cluster.get_host(), host
+                    bottle.response.body = json.dumps(
+                        fff_cluster.get_simulator_runs(
+                            self.opts, fff_cluster.get_host(), host
+                        )
                     )
-                    return json.dumps(answer)
+                    return bottle.response
 
                 elif what == "restart_hltd":
                     host = bottle.request.query.get("host", default=None)
-                    answer = "Specify host to restart HLTD"
+                    bottle.response.body = "Specify host to restart HLTD"
+                    bottle.status.status = 400
                     if host:
-                        answer = fff_cluster.restart_hltd(host)
-                    return answer
+                        bottle.response.body = fff_cluster.restart_hltd(host)
+                        bottle.status.status = 200
+                    return bottle.response
 
                 elif what == "restart_fff":
                     host = bottle.request.query.get("host", default=None)
-                    answer = "Specify host to restart FFF"
+                    bottle.status.body = "Specify host to restart FFF"
+                    bottle.status.status = 400
                     if host:
-                        answer = fff_cluster.restart_fff(host)
-                    return answer
+                        bottle.status.body = fff_cluster.restart_fff(host)
+                        bottle.response.status = 200
+                    return bottle.response
 
                 elif what == "get_hltd_logs":
                     host = bottle.request.query.get("host", default=None)
@@ -907,7 +922,8 @@ class WebServer(bottle.Bottle):
                         )
 
                         answer = [answer_hltd, answer_anelastic]
-                    return json.dumps(answer)
+                    bottle.response.body = json.dumps(answer)
+                    return bottle.response
 
                 elif what == "get_fff_logs":
                     host = bottle.request.query.get("host", default=None)
@@ -916,8 +932,52 @@ class WebServer(bottle.Bottle):
                         answer = fff_cluster.get_txt_file(
                             host, self.opts["logfile"], 30
                         )
-                    return json.dumps([answer])
+                    bottle.response.body = json.dumps([answer])
+                    return bottle.response
 
+                elif what == "get_cluster_status":
+                    requested_cluster = bottle.request.query.get(
+                        "cluster", default="playback"
+                    )
+
+                    # Check if any of the clusters matches the cluster name supplied.
+                    # clusters' keys are expected to be in the form "<cluster name>_".
+                    if not any(
+                        [
+                            cluster_name.split("_")[0] == requested_cluster
+                            for cluster_name in fff_cluster.clusters.keys()
+                        ]
+                    ):
+                        bottle.response.body = json.dumps(
+                            f"Cluster {requested_cluster} does not exist. Possible values: {list(map(lambda cluster_name: cluster_name.split('_')[0], fff_cluster.clusters.keys()))}"
+                        )
+                        bottle.response.status = 404
+                        return bottle.response
+
+                    # Find the actual cluster name in the dictionary
+                    for cluster_name in fff_cluster.clusters.keys():
+                        if cluster_name.split("_")[0] == requested_cluster:
+                            requested_cluster = cluster_name
+                    result = {}
+
+                    for host in fff_cluster.clusters[requested_cluster]:
+                        try:
+                            from ws4py.client.threadedclient import WebSocketClient
+
+                            ws = WebSocketClient(
+                                f"ws://{host}:9215/sync", protocols=["http-only"]
+                            )
+                            ws.connect()
+                            ws.send(
+                                json.dumps({"event": "sync_request", "known_rev": None})
+                            )
+                            ws.close()
+                            result[host] = True
+                        except Exception as e:
+                            log.error(f"Error when opening socket to {host}: {repr(e)}")
+                            result[host] = False
+
+                    return json.dumps(result)
                 elif what == "start_playback_run":
                     host = bottle.request.query.get(
                         "host", default="dqmrubu-c2a06-03-01"
