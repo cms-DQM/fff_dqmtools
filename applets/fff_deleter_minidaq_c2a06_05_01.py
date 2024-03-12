@@ -4,14 +4,14 @@ import fff_cluster
 import logging
 
 
-@fff_cluster.host_wrapper(allow=["kvm-s904-r-ip10-01"])
+@fff_cluster.host_wrapper(allow=["dqmrubu-c2a06-05-01"])
 @fff_dqmtools.fork_wrapper(__name__)
 @fff_dqmtools.lock_wrapper
 def __run__(opts, **kwargs):
     log = kwargs["logger"]
 
     ramdisk = "/cmsnfsdqmminidaq/dqmminidaq/"
-    tag = "fff_deleter_minidaq_cms904"
+    tag = "fff_deleter_minidaq_c2a06_05_01"
 
     service = fff_deleter.FileDeleter(
         top=ramdisk,

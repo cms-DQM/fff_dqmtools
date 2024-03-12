@@ -1,17 +1,18 @@
 import fff_dqmtools
-import applets.fff_deleter as fff_deleter
 import fff_cluster
+import applets.fff_deleter as fff_deleter
+
 import logging
 
 
-@fff_cluster.host_wrapper(allow=["kvm-s904-r-ip10-01"])
+@fff_cluster.host_wrapper(allow=["dqmrubu-c2a06-05-01"])
 @fff_dqmtools.fork_wrapper(__name__)
 @fff_dqmtools.lock_wrapper
 def __run__(opts, **kwargs):
     log = kwargs["logger"]
 
-    ramdisk = "/cmsnfsdqmminidaq/dqmminidaq/"
-    tag = "fff_deleter_minidaq_cms904"
+    ramdisk = "/fff/output/lookarea/"
+    tag = "fff_deleter_lookarea_c2a06_05_01"
 
     service = fff_deleter.FileDeleter(
         top=ramdisk,
@@ -26,4 +27,5 @@ def __run__(opts, **kwargs):
         fake=opts["deleter.fake"],
     )
     service.delay_seconds = 15 * 60
+
     service.run_greenlet()
