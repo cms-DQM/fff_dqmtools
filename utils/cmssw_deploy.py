@@ -657,7 +657,7 @@ def make_release(sc, args):
         log.error(
             "An error occurred during make-release. Please check the execution logs."
         )
-        log.info(f"Removing directory {base_path}")
+        log.info("Removing directory %s", base_path)
         shutil.rmtree(path=base_path, ignore_errors=True)
 
 
