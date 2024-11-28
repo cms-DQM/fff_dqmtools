@@ -77,7 +77,6 @@ REGEX_LOG_SHELL = re.compile(r"^\[(\d)\]\s")
 
 def log_shell(line):
     level = 0
-    line = line.decode("utf-8")
     match = REGEX_LOG_SHELL.match(line)
     if match:
         level = int(match.group(1)) + 1
@@ -94,9 +93,9 @@ def shell_cmd(cmd, callback=None, guard=False, merge_stderr=True, **kwargs):
     if merge_stderr:
         args["stderr"] = subprocess.STDOUT
 
-    p = subprocess.Popen(cmd, bufsize=1, stdout=subprocess.PIPE, **args)
+    p = subprocess.Popen(cmd, text=True, bufsize=1, stdout=subprocess.PIPE, **args)
 
-    for line in iter(p.stdout.readline, b""):
+    for line in iter(p.stdout.readline, ""):
         r = False
         if callback:
             r = callback(line)
@@ -187,9 +186,6 @@ class ScramCache(object):
                 return False
 
             project, tag, path = s
-            project = project.decode("utf-8")
-            tag = tag.decode("utf-8")
-            path = path.decode("utf-8")
             arch = None
 
             m = arch_re.search(path)
