@@ -703,12 +703,6 @@ def parse_args():
     )
 
     group = parser.add_argument_group("global_info", "Global information")
-    group.add_argument(
-        "--repo",
-        type=str,
-        default="git@github.com:cms-sw/cmssw.git",
-        help="Main git repository.",
-    )
     group.add_argument("--path", type=str, default="./", help="Default path.")
     group.add_argument(
         "--log", type=str, help="Log file to append (does not quiet stdout)"
