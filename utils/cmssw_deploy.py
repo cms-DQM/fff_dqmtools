@@ -311,28 +311,16 @@ def get_commits(mr):
 
 
 def get_commits_vs_base(mr):
-    pr_head = "refs/gh-remotes/pull/%d/head" % mr.id
-    pr_head_rev = parse_rev(pr_head)[0]
-    pr_merge = "refs/gh-remotes/pull/%d/merge" % mr.id
-
-    parents = []
+    commits = []
 
     def parse_commit(line):
-        x = line.strip().split()
-        if x:
-            parents[:] = x
+        split_line = line.strip().split()
+        if split_line and check_if_hash(split_line[0]):
+            commits.append(split_line[0])
         return True
 
-    shell_cmd(["git", "show", "--pretty=%P", "%s" % pr_merge], callback=parse_commit)
-
-    parents = set(parents)
-    parents.remove(pr_head_rev)
-
-    if len(parents) != 1:
-        raise Exception("Too many parents.")
-
-    parent = parents.pop()
-    return parse_commits("%s..%s" % (parent, pr_head)), parent, pr_head
+    shell_cmd(["git", "cms-show-pr", str(mr.id)], callback=parse_commit)
+    return commits
 
 
 def compare_commit_lists(list1, list2):
@@ -371,20 +359,46 @@ def apply_actual_pr(mr, args):
     log.info("Merging: %s", mr)
     log.info("Checking difference (vs head)")
     c1 = get_commits(mr)
-    # @TODO this is temporary disabled - github does not provide a way to consistently get parent id
-    # log.info("Checking difference (vs parent)")
-    # c2 = get_commits_vs_base(mr)
+    log.info("Checking difference (vs parent)")
+    c2 = get_commits_vs_base(mr)
     r = compare_commit_lists([], c1[0])
 
     if mr.type == "merge-topic":
-        # do the sparse checkout magic
-        # shell_cmd(["git", "cms-sparse-checkout", c1[1], c1[2]], guard=True)
-        # shell_cmd(["git", "read-tree", "-mu", "HEAD"], guard=True)
-
         log.info("'%s' is a merge-topic, will be done via git cms-merge-topic." % mr.id)
         shell_cmd(["git", "cms-merge-topic", "--ssh", str(mr.id)], guard=True)
     elif mr.type == "cherry-pick":
-        raise Exception("Not yet implemented")
+        log.info(f"'{mr.id}' will be applied via cherry-picking.")
+        # We use --keep-rendundant-commits in case the PR has already been merged in CMSSW
+        # Newer versions of git should use --empty=keep
+        shell_cmd(
+            ["git", "cherry-pick", "--allow-empty", "--keep-redundant-commits", *c2],
+            guard=True,
+        )
+        pkgs_to_checkout = []
+
+        def parse_package(line):
+            split_line = line.strip().split()
+            # The first line is the commit itself.
+            # Is there an option in "git show" to hide it?
+            if split_line and check_if_hash(split_line[0]):
+                return False
+            if split_line:
+                # For each file touched by the commit, keep the package it belongs to.
+                pkg_name = "/".join(split_line[0].split("/")[0:2])
+                if pkg_name not in pkgs_to_checkout:
+                    pkgs_to_checkout.append(pkg_name)
+            return True
+
+        for commit in c2:
+            shell_cmd(
+                ["git", "show", "--name-only", "--oneline", commit],
+                callback=parse_package,
+                guard=True,
+            )
+        shell_cmd(["git", "cms-addpkg", *pkgs_to_checkout], guard=True)
+
+        # checkdeps doesn't seem to work properly in some cases
+        # shell_cmd(["git", "cms-checkdeps", "-a"], guard=True)
 
     if not args.no_build:
         shell_cmd(["git", "cms-checkdeps", "-a"], guard=True)
