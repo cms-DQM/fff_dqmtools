@@ -768,13 +768,6 @@ def parse_args():
         help="Do scram stuff in tmp (work around against CMSONS-8215)",
     )
 
-    group.add_argument(
-        "--ignore-scram-cache",
-        action="store_true",
-        default=False,
-        help="Ignore local scram cache, if it exists",
-    )
-
     group = parser.add_argument_group("merge_info", "Merging options")
     group.add_argument(
         "--no-backup",
@@ -801,7 +794,7 @@ if __name__ == "__main__":
 
     # init or load git/scram cache
     scram_cache = ScramCache().load()
-    scram_cache.update(force=args.ignore_scram_cache)
+    scram_cache.update()
     scram_cache.save()
 
     if args.log:
@@ -809,7 +802,8 @@ if __name__ == "__main__":
 
     command = args.command
     if command == "update":
-        pass
+        scram_cache.update(force=True)
+        scram_cache.save()
     elif command == "select-release":
         target = select_target(
             scram_cache.scram_projects, args.tag, args.arch, args.tag_blacklist
