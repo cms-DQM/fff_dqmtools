@@ -402,7 +402,7 @@ def apply_pr(args):
     mr = list_os_mr[0]
 
     # we have to be in src and "git" command is in available
-    if not os.environ.has_key("CMSSW_BASE"):
+    if "CMSSW_BASE" not in os.environ:
         raise Exception("Please do cmsenv before calling me.")
 
     base_path = os.environ["CMSSW_BASE"]
