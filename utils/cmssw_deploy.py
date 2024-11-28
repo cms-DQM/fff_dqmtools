@@ -70,7 +70,6 @@ ReleaseEntry = namedtuple(
     "ReleaseEntry", ["name", "path", "pull_requests", "options", "build_time", "log"]
 )
 
-CacheFile = "~/.cmssw_deploy.pkl"
 UserConfigFile = "~/.cmssw_deploy.jsn"
 
 log_shell_re = re.compile("^\[(\d)\]\s")
@@ -135,13 +134,16 @@ class ScramCache(object):
     as well as configuration parameters.
     """
 
+    CACHE_FILE = "~/.cmssw_deploy.pkl"
+    MAX_CACHE_VALIDITY_SECONDS = 12 * 60 * 60  # 12 hours
+
     def __init__(self):
         self.scram_projects = []
         self.scan_time = None
 
     def save(self):
-        fp = os.path.expanduser(CacheFile)
-        with open(fp, "w") as f:
+        fp = os.path.expanduser(self.CACHE_FILE)
+        with open(fp, "wb") as f:
             pickle.dump(self, f)
 
         log.info("Save pull request and release info to: %s", fp)
@@ -150,8 +152,8 @@ class ScramCache(object):
     def load(cls):
         obj = cls()
         try:
-            fp = os.path.expanduser(CacheFile)
-            with open(fp, "r") as f:
+            fp = os.path.expanduser(cls.CACHE_FILE)
+            with open(fp, "rb") as f:
                 o = pickle.load(f)
                 obj.scram_projects = o.scram_projects
                 obj.scan_time = o.scan_time
@@ -162,7 +164,15 @@ class ScramCache(object):
         log.info("Loaded %d scram releases", len(obj.scram_projects))
         return obj
 
-    def update(self):
+    def update(self, force=False):
+        if (
+            not force
+            and self.scan_time
+            and (time.time() - self.scan_time < self.MAX_CACHE_VALIDITY_SECONDS)
+        ):
+            log.info(f"Scram cache still valid, not updating it.")
+            return
+
         self.update_scram_stuff()
         self.scan_time = time.time()
 
@@ -758,6 +768,13 @@ def parse_args():
         help="Do scram stuff in tmp (work around against CMSONS-8215)",
     )
 
+    group.add_argument(
+        "--ignore-scram-cache",
+        action="store_true",
+        default=False,
+        help="Ignore local scram cache, if it exists",
+    )
+
     group = parser.add_argument_group("merge_info", "Merging options")
     group.add_argument(
         "--no-backup",
@@ -783,8 +800,9 @@ if __name__ == "__main__":
     args = parse_args()
 
     # init or load git/scram cache
-    scram_cache = ScramCache()
-    scram_cache.update()
+    scram_cache = ScramCache().load()
+    scram_cache.update(force=args.ignore_scram_cache)
+    scram_cache.save()
 
     if args.log:
         handler.use_file(args.log)
