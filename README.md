@@ -2,7 +2,7 @@
 
 `fff_dqmtools` aka DQM^2.
 
-Twiki with more information [here](https://twiki.cern.ch/twiki/bin/viewauth/CMS/DQMOnlineFFFTools).
+Page with more information [here](https://cms-dqmdc.docs.cern.ch/software/fff_dqmtools/index.html).
 
 ## Building a package
 
@@ -10,18 +10,18 @@ Twiki with more information [here](https://twiki.cern.ch/twiki/bin/viewauth/CMS/
 > The `makerpm.sh` script will only work on RHEL-like OSes (e.g. an RHEL8 OpenStack VM).
 > To run this script you will need to install `rpmdevtools` and `rpmlint`.
 
-* Create a RPM by executing `./utils/makerpm.sh` in the repository's root folder.
+* Create an RPM by executing `./utils/makerpm.sh` in the repository's root folder.
 
 ## Installation
 
-* For the manual installation at P5, copy the source code and the built package and then execute: `./utils/install.py --remote <machine_name>` in the respository's root folder. This installation will be undone by puppet days/months later.
+* For the manual installation at P5, copy the source code and the built package and then execute: `./utils/install.py --remote <machine_name>` in the repository's root folder. This installation will be undone by puppet days/months later.
 
 * To update all of the DQM machines at once, the [dropbox](https://twiki.cern.ch/twiki/bin/view/CMS/ClusterUsersGuide#How_to_use_the_dropbox_computer) could be used (you will need to be in the appropriate `*_librarian` group):
     ```bash
-    ssh cmsdropboxcc8.cms
+    ssh <your P5 username>cmsdropboxcc8.cms
     sudo dropbox2 -z cms -o cc8 -s dqm -u /folder/with/fff_dqmtools/
     ```
-> [!INFO]
+> [!NOTE]
 > Once the operation completes, you will receive a report of what machines were updated.
 
 ## DQM^2 worflows
