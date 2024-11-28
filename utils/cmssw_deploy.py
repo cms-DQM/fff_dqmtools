@@ -72,16 +72,16 @@ ReleaseEntry = namedtuple(
 
 UserConfigFile = "~/.cmssw_deploy.jsn"
 
-log_shell_re = re.compile("^\[(\d)\]\s")
+REGEX_LOG_SHELL = re.compile(r"^\[(\d)\]\s")
 
 
 def log_shell(line):
     level = 0
     line = line.decode("utf-8")
-    match = log_shell_re.match(line)
+    match = REGEX_LOG_SHELL.match(line)
     if match:
         level = int(match.group(1)) + 1
-        line = log_shell_re.sub("", line)
+        line = REGEX_LOG_SHELL.sub("", line)
 
     log.info("[%d] %s" % (level, line))
     handler.flush()
