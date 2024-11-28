@@ -24,7 +24,24 @@ Page with more information [here](https://cms-dqmdc.docs.cern.ch/software/fff_dq
 > [!NOTE]
 > Once the operation completes, you will receive a report of what machines were updated.
 
-## DQM^2 worflows
+## Developing
+
+Openstack allows for great flexibility and access to CMSSW tools.
+
+### `cmssw_deploy`
+
+1. Create an OpenStack machine (currently suggested image: RHEL8).
+2. Install `locmap` (see [here](https://linux.web.cern.ch/rhel/locmap/)). You now have CVMFS.
+3. Install required tools (`yum install -y git gcc python38`). You might need to `ln -s /usr/bin/python3 ~/bin/python`.
+4. Switch to your CERN user (`su <username`).
+5. Clone `fff_dqmtools`.
+6. `source /cvmfs/cms.cern.ch/cmsset_default.sh # You now have scram`
+7. The openstack machine must have the SSH keys you use to authenticate with github (so that `scram` can do whatever needed to clone CMSSW).
+8. Configure `git` (`git config --global user.name`, as well as `user.email`).
+
+You should now be ready to run `cmssw_deploy`.
+
+## DQM^2 workflows
 
 ### To update DQM^2 DB with client info
 
@@ -38,3 +55,4 @@ To be catched with web client:
 https://github.com/cms-DQM/fff_dqmtools/blob/a62a1a317e1bc312c704065a43d3bd0aeb5ecc74/applets/fff_web.py#L462
 And saved to DB:
 https://github.com/cms-DQM/fff_dqmtools/blob/a62a1a317e1bc312c704065a43d3bd0aeb5ecc74/applets/fff_web.py#L148
+
