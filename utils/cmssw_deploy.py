@@ -755,7 +755,7 @@ def parse_args():
         "--pull-requests",
         type=str,
         default="",
-        help="Comma-separate list of pull requests to apply. "
+        help="Comma-separated list of pull requests to apply. "
         'Use "+number" to merge using cherry pick instead of merge-topic.',
     )
     group.add_argument(
