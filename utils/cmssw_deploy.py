@@ -138,34 +138,23 @@ def update_gts(base_src_path, args):
             "DQM/Integration/python/config/FrontierCondition_GT_cfi.py",
         )
         log.info(f"Updating HLT Global Tag to {args.gt_hlt} in file {filepath}")
-        update_gt(
-            filepath=filepath,
-            new_gt=args.gt_hlt,
-        )
+        update_gt(filepath=filepath, new_gt=args.gt_hlt)
     if args.gt_express:
         filepath = os.path.join(
             base_src_path,
             "DQM/Integration/python/config/FrontierCondition_GT_autoExpress_cfi.py",
         )
         log.info(f"Updating HLT Global Tag to {args.gt_express} in file {filepath}")
-        update_gt(
-            filepath=filepath,
-            new_gt=args.gt_express,
-        )
+        update_gt(filepath=filepath, new_gt=args.gt_express)
 
 
 def update_gt(filepath, new_gt):
     """
     Update the GlobalTag for a single file found in filepath to new_gt.
-    Requires that cmsenv has been run.
     """
     if not os.path.isfile(filepath):
         raise Exception(f"Could not find {filepath} when updating GT {new_gt}")
-    cmssw_major, cmssw_minor = os.environ["CMSSW_VERSION"].split("_")[1:3]
-    if not new_gt.startswith("".join([cmssw_major, cmssw_minor])):
-        raise Exception(
-            f"Global Tag {new_gt} is incompatible with {os.environ['CMSSW_VERSION']}"
-        )
+
     with open(filepath, "r") as f_in:
         file_contents = f_in.read()
     with open(filepath, "w") as f_out:
@@ -177,6 +166,12 @@ def update_gt(filepath, new_gt):
                 flags=re.MULTILINE,
             )
         )
+
+
+def check_gt_compatibility_or_raise(cmssw_version: str, gt: str):
+    cmssw_major, cmssw_minor = cmssw_version.split("_")[1:3]
+    if not gt.startswith("".join([cmssw_major, cmssw_minor])):
+        raise Exception(f"Global Tag {gt} is incompatible with {cmssw_version}")
 
 
 class ScramCache(object):
@@ -727,11 +722,34 @@ def make_release(sc, args):
                 ["../cmswrapper.sh", "git", "cms-addpkg", package],
                 cwd=base_src_path,
             )
-    try:
-        update_gts(base_src_path, args)
-    except Exception:
-        log.warning("Failed updating GTs", exc_info=True)
-        success = False
+    if args.gt_hlt or args.gt_express:
+        try:
+            # Here we cannot just get CMSSW_VERSION from the environ,
+            # so we have to get it through the wrapper.
+            cmssw_version = ""
+
+            def parse_cmssw_version(line: str):
+                # nonlocal to update the variable outside of the
+                # parent scope.
+                nonlocal cmssw_version
+                if line.startswith("CMSSW_"):
+                    cmssw_version = line.rstrip().lstrip()
+                    return True
+
+            # Activate the cms env and extract the real CMSSW_VERSION
+            shell_cmd(
+                ["./cmswrapper.sh", "printenv", "CMSSW_VERSION"],
+                callback=parse_cmssw_version,
+                cwd=base_path,
+            )
+            check_gt_compatibility_or_raise(cmssw_version=cmssw_version, gt=args.gt_hlt)
+            check_gt_compatibility_or_raise(
+                cmssw_version=cmssw_version, gt=args.gt_express
+            )
+            update_gts(base_src_path, args)
+        except Exception:
+            log.warning("Failed updating GTs", exc_info=True)
+            success = False
 
     if success:
         log.info("Made release area: %s", name)
@@ -873,6 +891,7 @@ def parse_args():
         raise Exception(
             "You have specified a Global Tag, but the required DQM/Integration package has not been selected via --cms-packages."
         )
+
     return args
 
 
@@ -913,12 +932,18 @@ if __name__ == "__main__":
         base_path = os.environ["CMSSW_BASE"]
         success = apply_multiple_pr(base_path, args)
     elif command == "update-gt":
-        if "CMSSW_BASE" not in os.environ:
+        if "CMSSW_BASE" not in os.environ or "CMSSW_VERSION" not in os.environ:
             raise Exception("Please do cmsenv before calling me.")
+
         if not (args.gt_hlt or args.gt_express):
             raise Exception(
                 "Please specify at least one GT to update via --gt-hlt or --gt-express"
             )
+        cmssw_version = os.environ["CMSSW_VERSION"]
+        # Check the GT compatibility with CMSSW directly from the environ,
+        # since we've already run cmsenv.
+        check_gt_compatibility_or_raise(cmssw_version=cmssw_version, gt=args.gt_hlt)
+        check_gt_compatibility_or_raise(cmssw_version=cmssw_version, gt=args.gt_express)
         base_src_path = os.path.join(os.environ["CMSSW_BASE"], "src")
         update_gts(base_src_path, args)
     else:
