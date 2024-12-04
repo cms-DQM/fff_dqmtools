@@ -169,6 +169,8 @@ def update_gt(filepath, new_gt):
 
 
 def check_gt_compatibility_or_raise(cmssw_version: str, gt: str):
+    if not cmssw_version or not gt:
+        return
     cmssw_major, cmssw_minor = cmssw_version.split("_")[1:3]
     if not gt.startswith("".join([cmssw_major, cmssw_minor])):
         raise Exception(f"Global Tag {gt} is incompatible with {cmssw_version}")
