@@ -765,6 +765,7 @@ def make_release(sc, args):
         )
         log.info("Removing directory %s", base_path)
         shutil.rmtree(path=base_path, ignore_errors=True)
+        sys.exit(1)
 
 
 class UserConfig(object):
