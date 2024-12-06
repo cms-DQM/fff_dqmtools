@@ -564,7 +564,7 @@ def apply_multiple_pr(base_path, args, cmd_prefix=[]):
 
         # prepare args and env
         argv = cmd_prefix + [
-            "python",
+            "python3",
             script,
         ]
         if args.no_build:
