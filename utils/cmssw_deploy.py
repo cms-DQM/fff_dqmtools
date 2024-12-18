@@ -128,6 +128,54 @@ def check_if_hash(x):
         return False
 
 
+def update_gts(base_src_path, args):
+    """
+    base_src_path is the full path to the "src" dir in CMSSW
+    """
+    if args.gt_hlt:
+        filepath = os.path.join(
+            base_src_path,
+            "DQM/Integration/python/config/FrontierCondition_GT_cfi.py",
+        )
+        log.info(f"Updating HLT Global Tag to {args.gt_hlt} in file {filepath}")
+        update_gt(filepath=filepath, new_gt=args.gt_hlt)
+    if args.gt_express:
+        filepath = os.path.join(
+            base_src_path,
+            "DQM/Integration/python/config/FrontierCondition_GT_autoExpress_cfi.py",
+        )
+        log.info(f"Updating HLT Global Tag to {args.gt_express} in file {filepath}")
+        update_gt(filepath=filepath, new_gt=args.gt_express)
+
+
+def update_gt(filepath, new_gt):
+    """
+    Update the GlobalTag for a single file found in filepath to new_gt.
+    """
+    if not os.path.isfile(filepath):
+        raise Exception(f"Could not find {filepath} when updating GT {new_gt}")
+
+    with open(filepath, "r") as f_in:
+        file_contents = f_in.read()
+    with open(filepath, "w") as f_out:
+        f_out.write(
+            re.sub(
+                r"^GlobalTag\.globaltag\s*=.+$",
+                f'GlobalTag.globaltag = "{new_gt}"',
+                file_contents,
+                flags=re.MULTILINE,
+            )
+        )
+
+
+def check_gt_compatibility_or_raise(cmssw_version: str, gt: str):
+    if not cmssw_version or not gt:
+        return
+    cmssw_major, cmssw_minor = cmssw_version.split("_")[1:3]
+    if not gt.startswith("".join([cmssw_major, cmssw_minor])):
+        raise Exception(f"Global Tag {gt} is incompatible with {cmssw_version}")
+
+
 class ScramCache(object):
     """Manager global git/scram information,
     as well as configuration parameters.
@@ -516,7 +564,7 @@ def apply_multiple_pr(base_path, args, cmd_prefix=[]):
 
         # prepare args and env
         argv = cmd_prefix + [
-            "python",
+            "python3",
             script,
         ]
         if args.no_build:
@@ -667,6 +715,44 @@ def make_release(sc, args):
         for tmp in tmp_to_delete:
             shell_cmd(["rm", "-fr", tmp], guard=True)
 
+    if args.cms_packages:
+        packages = args.cms_packages.split(",")
+        log.info(f"Checking out {len(packages)} cms packages via git cms-addpkg.")
+        for package in packages:
+            log.info(f"Checking out {package}")
+            shell_cmd(
+                ["../cmswrapper.sh", "git", "cms-addpkg", package],
+                cwd=base_src_path,
+            )
+    if args.gt_hlt or args.gt_express:
+        try:
+            # Here we cannot just get CMSSW_VERSION from the environ,
+            # so we have to get it through the wrapper.
+            cmssw_version = ""
+
+            def parse_cmssw_version(line: str):
+                # nonlocal to update the variable outside of the
+                # parent scope.
+                nonlocal cmssw_version
+                if line.startswith("CMSSW_"):
+                    cmssw_version = line.rstrip().lstrip()
+                    return True
+
+            # Activate the cms env and extract the real CMSSW_VERSION
+            shell_cmd(
+                ["./cmswrapper.sh", "printenv", "CMSSW_VERSION"],
+                callback=parse_cmssw_version,
+                cwd=base_path,
+            )
+            check_gt_compatibility_or_raise(cmssw_version=cmssw_version, gt=args.gt_hlt)
+            check_gt_compatibility_or_raise(
+                cmssw_version=cmssw_version, gt=args.gt_express
+            )
+            update_gts(base_src_path, args)
+        except Exception:
+            log.warning("Failed updating GTs", exc_info=True)
+            success = False
+
     if success:
         log.info("Made release area: %s", name)
         if handler.aux_file is None:
@@ -679,6 +765,7 @@ def make_release(sc, args):
         )
         log.info("Removing directory %s", base_path)
         shutil.rmtree(path=base_path, ignore_errors=True)
+        sys.exit(1)
 
 
 class UserConfig(object):
@@ -719,7 +806,7 @@ def parse_args():
     )
     parser.add_argument(
         "command",
-        help="What to do: update,make-release,select-release,apply-pr,apply-multiple-pr,build",
+        help="What to do: update,make-release,select-release,apply-pr,apply-multiple-pr,build,update-gt",
     )
 
     group = parser.add_argument_group("global_info", "Global information")
@@ -755,7 +842,7 @@ def parse_args():
         "--pull-requests",
         type=str,
         default="",
-        help="Comma-separate list of pull requests to apply. "
+        help="Comma-separated list of pull requests to apply. "
         'Use "+number" to merge using cherry pick instead of merge-topic.',
     )
     group.add_argument(
@@ -769,6 +856,24 @@ def parse_args():
         "--use-tmp",
         action="store_true",
         help="Do scram stuff in tmp (work around against CMSONS-8215)",
+    )
+    group.add_argument(
+        "--cms-packages",
+        type=str,
+        default="DQM/Integration",
+        help="Comma-separated cmssw packages to be added with git cms-addpkg after creating the release. Default: %(default)s",
+    )
+    group.add_argument(
+        "--gt-hlt",
+        type=str,
+        required=False,
+        help="HLT Global Tag to use",
+    )
+    group.add_argument(
+        "--gt-express",
+        type=str,
+        required=False,
+        help="Express Global Tag to use",
     )
 
     group = parser.add_argument_group("merge_info", "Merging options")
@@ -785,6 +890,11 @@ def parse_args():
     group.add_argument("--no-build", action="store_true", help="Don't call scram b.")
 
     args = parser.parse_args()
+    if (args.gt_hlt or args.gt_express) and "DQM/Integration" not in args.cms_packages:
+        raise Exception(
+            "You have specified a Global Tag, but the required DQM/Integration package has not been selected via --cms-packages."
+        )
+
     return args
 
 
@@ -819,10 +929,25 @@ if __name__ == "__main__":
     elif command == "apply-pr":
         apply_pr(args)
     elif command == "apply-multiple-pr":
-        if not os.environ.has_key("CMSSW_BASE"):
+        if "CMSSW_BASE" not in os.environ:
             raise Exception("Please do cmsenv before calling me.")
 
         base_path = os.environ["CMSSW_BASE"]
         success = apply_multiple_pr(base_path, args)
+    elif command == "update-gt":
+        if "CMSSW_BASE" not in os.environ or "CMSSW_VERSION" not in os.environ:
+            raise Exception("Please do cmsenv before calling me.")
+
+        if not (args.gt_hlt or args.gt_express):
+            raise Exception(
+                "Please specify at least one GT to update via --gt-hlt or --gt-express"
+            )
+        cmssw_version = os.environ["CMSSW_VERSION"]
+        # Check the GT compatibility with CMSSW directly from the environ,
+        # since we've already run cmsenv.
+        check_gt_compatibility_or_raise(cmssw_version=cmssw_version, gt=args.gt_hlt)
+        check_gt_compatibility_or_raise(cmssw_version=cmssw_version, gt=args.gt_express)
+        base_src_path = os.path.join(os.environ["CMSSW_BASE"], "src")
+        update_gts(base_src_path, args)
     else:
         log.error("Unknown command: %s", command)
