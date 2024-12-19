@@ -168,12 +168,12 @@ def update_gt(filepath, new_gt):
         )
 
 
-def check_gt_compatibility_or_raise(cmssw_version: str, gt: str):
+def check_gt_compatibility_or_warn(cmssw_version: str, gt: str):
     if not cmssw_version or not gt:
         return
     cmssw_major, cmssw_minor = cmssw_version.split("_")[1:3]
     if not gt.startswith("".join([cmssw_major, cmssw_minor])):
-        raise Exception(f"Global Tag {gt} is incompatible with {cmssw_version}")
+        logging.warning(f"Global Tag {gt} might be incompatible with {cmssw_version}")
 
 
 class ScramCache(object):
@@ -447,10 +447,6 @@ def apply_actual_pr(mr, args):
 
         # checkdeps doesn't seem to work properly in some cases
         # shell_cmd(["git", "cms-checkdeps", "-a"], guard=True)
-
-    if not args.no_build:
-        shell_cmd(["git", "cms-checkdeps", "-a"], guard=True)
-        shell_cmd(["scram", "b", "-j16"], guard=True)
 
     log.info("Merge successful: %s", mr)
 
@@ -744,8 +740,8 @@ def make_release(sc, args):
                 callback=parse_cmssw_version,
                 cwd=base_path,
             )
-            check_gt_compatibility_or_raise(cmssw_version=cmssw_version, gt=args.gt_hlt)
-            check_gt_compatibility_or_raise(
+            check_gt_compatibility_or_warn(cmssw_version=cmssw_version, gt=args.gt_hlt)
+            check_gt_compatibility_or_warn(
                 cmssw_version=cmssw_version, gt=args.gt_express
             )
             update_gts(base_src_path, args)
@@ -754,6 +750,15 @@ def make_release(sc, args):
             success = False
 
     if success:
+        if not args.no_build:
+            shell_cmd(
+                ["./cmswrapper.sh", "git", "cms-checkdeps", "-a"],
+                guard=True,
+                cwd=base_path,
+            )
+            shell_cmd(
+                ["./cmswrapper.sh", "scram", "b", "-j16"], guard=True, cwd=base_path
+            )
         log.info("Made release area: %s", name)
         if handler.aux_file is None:
             log_file = os.path.join(base_path, "make_release.log")
@@ -945,8 +950,8 @@ if __name__ == "__main__":
         cmssw_version = os.environ["CMSSW_VERSION"]
         # Check the GT compatibility with CMSSW directly from the environ,
         # since we've already run cmsenv.
-        check_gt_compatibility_or_raise(cmssw_version=cmssw_version, gt=args.gt_hlt)
-        check_gt_compatibility_or_raise(cmssw_version=cmssw_version, gt=args.gt_express)
+        check_gt_compatibility_or_warn(cmssw_version=cmssw_version, gt=args.gt_hlt)
+        check_gt_compatibility_or_warn(cmssw_version=cmssw_version, gt=args.gt_express)
         base_src_path = os.path.join(os.environ["CMSSW_BASE"], "src")
         update_gts(base_src_path, args)
     else:
