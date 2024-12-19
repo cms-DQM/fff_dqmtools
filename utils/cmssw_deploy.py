@@ -448,10 +448,6 @@ def apply_actual_pr(mr, args):
         # checkdeps doesn't seem to work properly in some cases
         # shell_cmd(["git", "cms-checkdeps", "-a"], guard=True)
 
-    if not args.no_build:
-        shell_cmd(["git", "cms-checkdeps", "-a"], guard=True)
-        shell_cmd(["scram", "b", "-j16"], guard=True)
-
     log.info("Merge successful: %s", mr)
 
 
@@ -754,6 +750,15 @@ def make_release(sc, args):
             success = False
 
     if success:
+        if not args.no_build:
+            shell_cmd(
+                ["./cmswrapper.sh", "git", "cms-checkdeps", "-a"],
+                guard=True,
+                cwd=base_path,
+            )
+            shell_cmd(
+                ["./cmswrapper.sh", "scram", "b", "-j16"], guard=True, cwd=base_path
+            )
         log.info("Made release area: %s", name)
         if handler.aux_file is None:
             log_file = os.path.join(base_path, "make_release.log")
