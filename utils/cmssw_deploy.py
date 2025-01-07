@@ -309,8 +309,17 @@ def select_target(available, tag, arch, tag_blacklist):
         tag = line
 
 
-def get_list_of_pr(string):
-    # validate pull requests
+def get_list_of_prs(string):
+    """
+    Validate pull requests from arguments.
+    string is a str, which should be comma-separated integers,
+    representing PR ids.
+
+    If the integer starts with "+", the PR will not be merged
+    with 'merge-topic', but will be applied by cherry-picking the
+    commits it includes. Useful for PRs which are not backports
+    and only apply on later versions of CMSSW that the one in use.
+    """
     pull_requests = []
     if string:
         for p in string.split(","):
@@ -453,7 +462,7 @@ def apply_actual_pr(mr, args):
 
 def apply_pr(args):
     # some verification checks:
-    list_os_mr = get_list_of_pr(args.pull_requests)
+    list_os_mr = get_list_of_prs(args.pull_requests)
     if len(list_os_mr) != 1:
         raise Exception("Only one pull request can be applied using apply-pr.")
 
@@ -547,7 +556,7 @@ def make_src_backup(base_path, label):
 def apply_multiple_pr(base_path, args, cmd_prefix=[]):
     """wrapper to apply multiple pr, it will launch subprocesses for each pr"""
 
-    list_os_mr = get_list_of_pr(args.pull_requests)
+    list_os_mr = get_list_of_prs(args.pull_requests)
     status = {}
 
     script = os.path.abspath(sys.argv[0])
@@ -613,9 +622,11 @@ def apply_multiple_pr(base_path, args, cmd_prefix=[]):
     return all_prs_applied
 
 
-def make_release(sc, args):
+def make_release(scram_cache, args):
     # find the release to use
-    target = select_target(sc.scram_projects, args.tag, args.arch, args.tag_blacklist)
+    target = select_target(
+        scram_cache.scram_projects, args.tag, args.arch, args.tag_blacklist
+    )
     log.info("Selected release: %s %s", target.arch, target.tag)
 
     log.info("Make release invoked on: %s", socket.gethostname())
@@ -630,7 +641,7 @@ def make_release(sc, args):
             "_",
         ] + components
 
-    pull_requests = get_list_of_pr(args.pull_requests)
+    pull_requests = get_list_of_prs(args.pull_requests)
     if len(pull_requests) <= 5:
         for m in pull_requests:
             components.append("_" + m.label)
