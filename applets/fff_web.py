@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-import json
+import os
 import re
-import sqlite3
-import os, time
+import json
+import time
 import socket
+import sqlite3
 import logging
+import urllib3
 
 import fff_dqmtools
 import fff_cluster
@@ -761,13 +763,12 @@ class WebServer(bottle.Bottle):
         # @check_auth
         @enable_cors
         def sync_proxy():
-            from bottle import request, response
+            from bottle import request, response, abort
 
             data = json.loads(request.body.read())
             lst = data.get("messages", [])
-
+            log.info(f"Getting messages from: {str(request.remote_addr)}")
             output = SyncSocket.proxy_mode(lst, peer_address=request.remote_addr)
-            log.info(str(request.remote_addr))
 
             response.content_type = "application/json"
             return json.dumps({"messages": output})
@@ -777,7 +778,7 @@ class WebServer(bottle.Bottle):
         # @check_auth
         @enable_cors
         def redirect():
-            from bottle import request, response
+            from bottle import request, response, abort
 
             url = (
                 "http://"
@@ -786,9 +787,20 @@ class WebServer(bottle.Bottle):
                 + request.query.port
                 + "/sync_proxy"
             )
-            r = requests.post(
-                url, data=request.body, headers=request.headers, timeout=5
-            )
+            try:
+                r = requests.post(
+                    url, data=request.body, headers=request.headers, timeout=5
+                )
+                response.status = r.status_code
+            except requests.exceptions.ConnectTimeout:
+                msg = f"Timeout when POSTing to {url}"
+                log.error(msg)
+                abort(408, msg)
+            except OSError:
+                msg = f"Could not open a connection to {url}"
+                log.error(msg)
+                abort(503, msg)
+
             return r.content
 
         ### API for DQM^2 Control Room
