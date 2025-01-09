@@ -20,9 +20,9 @@ Page with more information [here](https://cms-dqmdc.docs.cern.ch/software/fff_dq
   `bash
     ssh <your P5 username>cmsdropboxcc8.cms
     sudo dropbox2 -z cms -o cc8 -s dqm -u /folder/with/fff_dqmtools/
-    `
-  > [!NOTE]
-  > Once the operation completes, you will receive a report of what machines were updated.
+  `
+> [!NOTE]
+> Once the operation completes, you will receive a report of what machines were updated.
 
 ## Developing
 
