@@ -14,15 +14,29 @@ Page with more information [here](https://cms-dqmdc.docs.cern.ch/software/fff_dq
 
 ## Installation
 
-- For the manual installation at P5, copy the source code and the built package and then execute: `./utils/install.py --remote <machine_name>` in the repository's root folder. This installation will be undone by puppet days/months later.
+### All machines at once
 
-- To update all of the DQM machines at once, the [dropbox](https://twiki.cern.ch/twiki/bin/view/CMS/ClusterUsersGuide#How_to_use_the_dropbox_computer) could be used (you will need to be in the appropriate `*_librarian` group):
-  `bash
+Installation on P5 machines is done on the `cmsdropboxcc8.cms` machine, using the `dropbox2` command (see more information about the dropbox [here](https://twiki.cern.ch/twiki/bin/view/CMS/ClusterUsersGuide#How_to_use_the_dropbox_computer)) and an `.rpm` archive, created using the `./utils/makerpm.sh` script.
+
+This procedure applies the update to all of the DQM machines at once. You will need to be in the appropriate `*_librarian` group. Open a ticket to CMSONS to be added to the group.
+
+Procedure:
+
+1. Copy the `.rpm` you generated to a directory inside a dedicatated directory inside your home directory of the P5 cluster (e.g., `/nfshome0/<your username>/fff_dqmtools`).
+2. Then:
+  ```bash
     ssh <your P5 username>cmsdropboxcc8.cms
-    sudo dropbox2 -z cms -o cc8 -s dqm -u /folder/with/fff_dqmtools/
-  `
+    sudo dropbox2 -z cms -o cc8 -s dqm -u /nfshome0/<your username>/fff_dqmtools/
+  ```
 > [!NOTE]
 > Once the operation completes, you will receive a report of what machines were updated.
+
+> [!NOTE]
+> The `fff_dqmtools` service is restarted after the rpm is reinstalled.
+
+### Manually (and remotely)
+
+For the manual remote installation at P5, copy the source code and the built package and then execute: `./utils/install.py --remote <machine_name>` in the repository's root folder. This installation will be undone by puppet days/months later.
 
 ## Developing
 
