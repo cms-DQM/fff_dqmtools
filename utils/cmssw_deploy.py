@@ -768,7 +768,7 @@ def make_release(scram_cache, args):
                 cwd=base_path,
             )
             shell_cmd(
-                ["./cmswrapper.sh", "scram", "b", "-j16"], guard=True, cwd=base_path
+                ["./cmswrapper.sh", "scram", "b", "-j64"], guard=True, cwd=base_path
             )
         log.info("Made release area: %s", name)
         if handler.aux_file is None:
