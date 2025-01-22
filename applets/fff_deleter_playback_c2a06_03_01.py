@@ -10,12 +10,9 @@ import logging
 def __run__(opts, **kwargs):
     log = kwargs["logger"]
 
-    ramdisk = "/fff/ramdisk/"
-    tag = "fff_deleter_playback_c2a06_03_01"
-
-    service = fff_deleter.FileDeleter(
-        top=ramdisk,
-        app_tag=tag,
+    service_ramdisk = fff_deleter.FileDeleter(
+        top="/fff/ramdisk/",
+        app_tag="fff_deleter_playback_c2a06_03_01",
         thresholds={
             "rename": 60,
             "delete": 80,
@@ -24,6 +21,6 @@ def __run__(opts, **kwargs):
         report_directory=opts["path"],
         fake=opts["deleter.fake"],
     )
-    service.delay_seconds = 30
+    service_ramdisk.delay_seconds = 30
 
-    service.run_greenlet()
+    service_ramdisk.run_greenlet()
