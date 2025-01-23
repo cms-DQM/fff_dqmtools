@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 
-import sys
 import os
-import logging
 import re
-import datetime
-import subprocess
 import socket
 import time
 import json
 import shutil
-from collections import OrderedDict, namedtuple
+from collections import namedtuple
+from typing import Callable
 
 import fff_dqmtools
 import applets.fff_filemonitor as fff_filemonitor
@@ -24,19 +21,48 @@ re_files = re.compile(
 re_folders = re.compile(r"^run(?P<run>\d+)$")
 
 
-def parse_file_name(rl):
-    m = re_files.match(rl)
+def get_default_sort_key(d: dict) -> tuple:
+    return (int(d["run"]), int(d["runf"]), int(d["ls"]), d["leftover"])
+
+
+def get_default_run_path(d: dict) -> str:
+    return "run" + d["run"]
+
+
+def parse_file_name(
+    rl,
+    regexp_files=re_files,
+    get_sort_key: Callable = get_default_sort_key,
+    get_run_path: Callable = get_default_run_path,
+):
+    m = regexp_files.match(rl)
     if not m:
         return None, None
 
     d = m.groupdict()
-    sort_key = (int(d["run"]), int(d["runf"]), int(d["ls"]), d["leftover"])
+    sort_key = get_sort_key(d)
 
-    run_path = "run" + d["run"]
+    run_path = get_run_path(d)
     return sort_key, run_path
 
 
-def collect(top, log):
+def collect(
+    top,
+    log,
+    regexp_folders=re_folders,
+    regexp_files=re_files,
+    get_sort_key: Callable = get_default_sort_key,
+    get_run_path: Callable = get_default_run_path,
+):
+    """
+    Function that scans a directory (top) for files and directories to
+    find files to delete.
+
+    regexp_folders is used to match directories inside the top dir.
+    regexp_files is used to match files inside the dirs matched by regexp_folders,
+    using the relative path under the top dir, e.g.,
+    run522701/run522701_ls0100_streamDQMOnlineBeamspot_StorageManager.jsn
+    """
     # entry format for files: DataEntry
     collected = []
 
@@ -53,6 +79,8 @@ def collect(top, log):
             log.error("Failed to stat file or directory: %s", fp, exc_info=True)
             return 0, 0
 
+    # Recurse over directories and files in top. Using topdown=True
+    # allows for modifying the dirs list, effectively limiting the search.
     for root, dirs, files in os.walk(top, topdown=True):
         root_rl = os.path.relpath(root, top)
 
@@ -64,7 +92,7 @@ def collect(top, log):
         dirs[:] = [d for d in dirs if not (d.startswith("run") and ".deleted" in d)]
 
         # insert folder descriptions
-        if re_folders.match(root_rl) is not None:
+        if regexp_folders.match(root_rl):
             if root_rl not in collected_paths:
                 _dsize, dtime = stat(root)
                 collected_paths[root_rl] = DataEntry(root_rl, root, 0, dtime)
@@ -74,7 +102,12 @@ def collect(top, log):
             rl = os.path.join(root_rl, name)
 
             # rl is always root relative!
-            sort_key, run_rl = parse_file_name(rl)
+            sort_key, run_rl = parse_file_name(
+                rl,
+                regexp_files=regexp_files,
+                get_sort_key=get_sort_key,
+                get_run_path=get_run_path,
+            )
             if sort_key:
                 fsize, ftime = stat(fp)
 
@@ -101,6 +134,10 @@ class FileDeleter(object):
         fake=True,
         skip_latest=False,
         app_tag="fff_deleter",
+        regexp_folders=re_folders,
+        regexp_files=re_files,
+        get_sort_key: Callable = get_default_sort_key,
+        get_run_path: Callable = get_default_run_path,
     ):
         self.top = top
         self.fake = fake
@@ -111,6 +148,10 @@ class FileDeleter(object):
         self.log = log
         self.delay_seconds = 30
         self.skip_latest = skip_latest
+        self.regexp_folders = regexp_folders
+        self.regexp_files = regexp_files
+        self.get_sort_key = get_sort_key
+        self.get_run_path = get_run_path
 
         self.hostname = socket.gethostname()
 
@@ -191,7 +232,7 @@ class FileDeleter(object):
 
     def calculate_threshold(self, type_string):
         """Calculates how much bytes we have to delete
-        in order to reach the threshold percentange.
+        in order to reach the threshold percentage.
 
         If the threshold is set to 80% and the disk
         at 89%, it fill return 9% in bytes.
@@ -218,7 +259,7 @@ class FileDeleter(object):
     def do_the_cleanup(self):
         self.sequence += 1
         if not os.path.isdir(self.top):
-            self.log.warning("Directory %s does not exists.", self.top)
+            self.log.warning("Directory %s does not exist.", self.top)
             return
 
         stopSizeRename = self.calculate_threshold("rename")
@@ -226,10 +267,17 @@ class FileDeleter(object):
 
         assert stopSizeRename > stopSizeDelete
 
-        # do the action until we reach the target sizd
+        # do the action until we reach the target size
         self.log.info("Started file collection at %s", self.top)
         start = time.time()
-        collected, collected_paths = collect(self.top, self.log)
+        collected, collected_paths = collect(
+            self.top,
+            self.log,
+            regexp_folders=self.regexp_folders,
+            regexp_files=self.regexp_files,
+            get_sort_key=self.get_sort_key,
+            get_run_path=self.get_run_path,
+        )
         self.log.info("Done file collection, took %.03fs.", time.time() - start)
 
         latest_run = collected[-1][0][0]
