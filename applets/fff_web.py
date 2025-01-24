@@ -476,21 +476,14 @@ class WebServer(bottle.Bottle):
         def check_auth(fn):
             def check_auth_(**kwargs):
                 host = bottle.request.get_header("host")
-                log.info("check_auth(): host=%s", host)
-                log.debug(bottle.request.url)
-                log.debug(str(bottle.request.auth))
-                log.debug(str(bottle.request.remote_route))
-                log.debug(str(bottle.request.remote_addr))
-                log.debug(str(bottle.request.json))
-                log.debug(str(bottle.request.path))
-                log.debug(str(bottle.request.cookies.items()))
+                log.debug("check_auth(): host=%s", host)
 
                 if "cmsweb" in bottle.request.url:
                     secret = get_cookie(
                         self.secret_name, bottle.request.headers.raw("Cookie")
                     )
                     if not check_secret(secret):
-                        log.info("answer BAD host=%s", host)
+                        log.warning("answer BAD host=%s", host)
                         bottle.redirect("https://cmsweb.cern.ch/")
                     else:
                         return fn(**kwargs)
@@ -767,7 +760,7 @@ class WebServer(bottle.Bottle):
             lst = data.get("messages", [])
 
             output = SyncSocket.proxy_mode(lst, peer_address=request.remote_addr)
-            log.info(str(request.remote_addr))
+            log.debug(f"Received request from {request.remote_addr}")
 
             response.content_type = "application/json"
             return json.dumps({"messages": output})
@@ -795,8 +788,6 @@ class WebServer(bottle.Bottle):
         @app.route("/cr/exe")
         @check_auth
         def cr_api():
-            log.info(bottle.request.urlparts)
-            log.info(bottle.request.urlparts.query)
             what = bottle.request.query.get("what")
 
             try:
@@ -1032,7 +1023,7 @@ class WebServer(bottle.Bottle):
 
             except Exception as error_log:
                 msg = f"cr_api@{what}: error: {error_log}"
-                log.warning(msg)
+                log.error(msg, exc_info=True)
                 return msg, 400
             log.warning(f"cr_api@{what} : No actions defined for that request")
             return f"No actions defined for request {what}", 400
