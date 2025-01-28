@@ -6,6 +6,7 @@ import os
 import time
 import socket
 import logging
+from datetime import datetime
 
 import fff_dqmtools
 import fff_cluster
@@ -423,7 +424,9 @@ def get_list_of_release_comparisons(cmssw_comparison_reports_path: Path):
             # and the expected html report is in there.
             # Convert to str because Path is not JSON serializable.
             answer = {
-                "timestamp": m["timestamp"],
+                "timestamp": datetime.strptime(
+                    m["timestamp"], "%Y%m%d-%H%M%S"
+                ).isoformat(),
                 "base": m["cmssw_base"],
                 "base_prs": (
                     []
