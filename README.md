@@ -1,5 +1,8 @@
 # `fff_dqmtools`
 
+> [!WARNING]
+> This repository has moved [here](https://gitlab.cern.ch/cms-dqmdc/services/fff_dqmtools).
+
 `fff_dqmtools` aka DQM^2.
 
 Page with more information [here](https://cms-dqmdc.docs.cern.ch/software/fff_dqmtools/index.html).
