@@ -470,6 +470,8 @@ if __name__ == "__main__":
         "web.secret_name": "selenium-secret-secret",
         "cmssw_path_playback": "/dqmdata/dqm_cmssw/current_playback",
         "cmssw_path_production": "/dqmdata/dqm_cmssw/current_production",
+        # The default output directory of cmssw_release_comparison
+        "cmssw_comparison_reports": "/nfshome0/dqmdev/cmssw_comparison_results",
         "dqm_clients_subdir": "/src/DQM/Integration/python/clients/",
         "hltd_clients_path": "/etc/appliance/dqm_resources/",
         "deleter.ramdisk": "/fff/ramdisk/",

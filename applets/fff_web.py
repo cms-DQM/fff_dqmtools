@@ -2,9 +2,11 @@
 import json
 import re
 import sqlite3
-import os, time
+import os
+import time
 import socket
 import logging
+from datetime import datetime
 
 import fff_dqmtools
 import fff_cluster
@@ -12,9 +14,11 @@ import applets.fff_filemonitor as fff_filemonitor
 
 # fff_dqmtools fixed the imports for us
 import bottle
+from bottle import abort
 import zlib
 import itertools
 import requests
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -403,6 +407,44 @@ class SyncSocket(WebSocket):
         return output_messages
 
 
+def get_list_of_release_comparisons(cmssw_comparison_reports_path: Path):
+    valid_reports = []
+    for subdir in cmssw_comparison_reports_path.iterdir():
+        m = re.match(
+            r"^(?P<timestamp>\d{8}-\d{6})_"
+            + r"comparison_base_\d{4}_"
+            + r"CMSSW_(?P<cmssw_base>\d{1,2}_\d{1,2}_\d{1,2}(_pre\d|_patch\d)?)(?P<base_prs>(_\d{1,5})*?)"
+            + r"_vs_comparison_comp_\d{4}_"
+            + r"CMSSW_(?P<cmssw_comp>\d{1,2}_\d{1,2}_\d{1,2}(_pre\d|_patch\d)?)(?P<comp_prs>(_\d{1,5})*?)$",
+            subdir.name,
+        )
+
+        if m and subdir.joinpath("dqm-histo-comparison-summary.html").exists():
+            # Path matches comparison results regex,
+            # and the expected html report is in there.
+            # Convert to str because Path is not JSON serializable.
+            answer = {
+                "timestamp": datetime.strptime(
+                    m["timestamp"], "%Y%m%d-%H%M%S"
+                ).isoformat(),
+                "base": m["cmssw_base"],
+                "base_prs": (
+                    []
+                    if "base_prs" not in m.groupdict()
+                    else [pr for pr in m["base_prs"].split("_") if pr]
+                ),
+                "comp": m["cmssw_comp"],
+                "comp_prs": (
+                    []
+                    if "comp_prs" not in m.groupdict()
+                    else [pr for pr in m["comp_prs"].split("_") if pr]
+                ),
+                "id": subdir.name,
+            }
+            valid_reports.append(answer)
+    return valid_reports
+
+
 class WebServer(bottle.Bottle):
     def __init__(self, db=None, opts={}):
         bottle.Bottle.__init__(self)
@@ -476,21 +518,14 @@ class WebServer(bottle.Bottle):
         def check_auth(fn):
             def check_auth_(**kwargs):
                 host = bottle.request.get_header("host")
-                log.info("check_auth(): host=%s", host)
-                log.debug(bottle.request.url)
-                log.debug(str(bottle.request.auth))
-                log.debug(str(bottle.request.remote_route))
-                log.debug(str(bottle.request.remote_addr))
-                log.debug(str(bottle.request.json))
-                log.debug(str(bottle.request.path))
-                log.debug(str(bottle.request.cookies.items()))
+                log.debug("check_auth(): host=%s", host)
 
                 if "cmsweb" in bottle.request.url:
                     secret = get_cookie(
                         self.secret_name, bottle.request.headers.raw("Cookie")
                     )
                     if not check_secret(secret):
-                        log.info("answer BAD host=%s", host)
+                        log.warning("answer BAD host=%s", host)
                         bottle.redirect("https://cmsweb.cern.ch/")
                     else:
                         return fn(**kwargs)
@@ -767,7 +802,7 @@ class WebServer(bottle.Bottle):
             lst = data.get("messages", [])
 
             output = SyncSocket.proxy_mode(lst, peer_address=request.remote_addr)
-            log.info(str(request.remote_addr))
+            log.debug(f"Received request from {request.remote_addr}")
 
             response.content_type = "application/json"
             return json.dumps({"messages": output})
@@ -795,8 +830,6 @@ class WebServer(bottle.Bottle):
         @app.route("/cr/exe")
         @check_auth
         def cr_api():
-            log.info(bottle.request.urlparts)
-            log.info(bottle.request.urlparts.query)
             what = bottle.request.query.get("what")
 
             try:
@@ -1029,13 +1062,44 @@ class WebServer(bottle.Bottle):
                     sock.shutdown(socket.SHUT_WR)
                     sock.close()
                     return "start_playback_run Ok"
+                elif what == "cmssw_comparison_reports":
+                    """
+                    Return a list of directories created by cmssw_release_comparison.
 
-            except Exception as error_log:
-                msg = f"cr_api@{what}: error: {error_log}"
-                log.warning(msg)
-                return msg, 400
+                    If 'id' is also passed as an argument, use it to serve
+                    the comparison result
+                    """
+                    cmssw_comparison_reports_path = Path(
+                        self.opts["cmssw_comparison_reports"]
+                    )
+                    assert cmssw_comparison_reports_path.exists()
+
+                    comparison_id = bottle.request.query.get("id")
+                    if comparison_id:
+                        if cmssw_comparison_reports_path.joinpath(
+                            comparison_id, "dqm-histo-comparison-summary.html"
+                        ).exists():
+                            return bottle.static_file(
+                                "dqm-histo-comparison-summary.html",
+                                root=cmssw_comparison_reports_path.joinpath(
+                                    comparison_id
+                                ),
+                            )
+                        else:
+                            abort(400, f"Comparison with id {comparison_id} not found")
+
+                    # Populate directory of release comparisons and return it as JSON
+                    valid_reports = get_list_of_release_comparisons(
+                        cmssw_comparison_reports_path
+                    )
+                    return json.dumps(valid_reports)
+
+            except Exception as e:
+                msg = f"cr_api@{what}: error: {e}"
+                log.error(msg, exc_info=True)
+                abort(400, msg)
             log.warning(f"cr_api@{what} : No actions defined for that request")
-            return f"No actions defined for request {what}", 400
+            abort(400, f"Invalid request '{what}'")
 
 
 def run_web_greenlet(db, host="0.0.0.0", port=9215, opts={}, **kwargs):
